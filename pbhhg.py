@@ -86,7 +86,7 @@ def parse_word(word, stack):
             return stack + [FunDef(body)]
         
     elif 'ㅇ' in word:
-        relF, relA = word.split('ㅇ')
+        relA, relF = word.split('ㅇ')
         relF = abs(parse_number(relF)) if relF else 0
         if not relA:  # FunRef
             return stack + [FunRef(relF)]
