@@ -1,10 +1,11 @@
-'''
+﻿'''
 함수형 난해한 언어 '평범한 한글'의 구현체입니다.
 
-현재 지원 안되는 단어:
-* ㅇ 두 개 이상
-* ㅇ 단독
-* ㅎ 다음에 오는 ㅇ
+Updates
+v0.2
+* ㅇ의 행동을 변경했습니다.
+  - 인수 위치를 정수 리터럴로만 지정 가능 -> 동적으로 평가해 그 값으로 지정 가능
+  - 주의: v0.1의 행동과 호환이 되지 않습니다.
 '''
 from collections import namedtuple
 import sys
@@ -12,14 +13,14 @@ import sys
 
 def normalize_char(c):
     '''Normalizes each character into standard form'''
-    # note all ㅎ has a preceding space in following tables
+    # note all ㅇ and ㅎ has a preceding space in following tables
     jamo = ['ㄱ', 'ㄱ', 'ㄱㅅ', 'ㄴ', 'ㄴㅈ', 'ㄴ ㅎ',
             'ㄷ', 'ㄷ', 'ㄹ', 'ㄹㄱ', 'ㄹㅁ', 'ㄹㅂ',
             'ㄹㅅ', 'ㄹㄷ', 'ㄹㅂ', 'ㄹ ㅎ', 'ㅁ', 'ㅂ',
-            'ㅂ', 'ㅂㅅ', 'ㅅ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅈ',
+            'ㅂ', 'ㅂㅅ', 'ㅅ', 'ㅅ', ' ㅇ', 'ㅈ', 'ㅈ',
             'ㅈ', 'ㄱ', 'ㄷ', 'ㅂ', ' ㅎ']
     choseong = ['ㄱ', 'ㄱ', 'ㄴ', 'ㄷ', 'ㄷ', 'ㄹ', 'ㅁ',
-                'ㅂ', 'ㅂ', 'ㅅ', 'ㅅ', 'ㅇ', 'ㅈ', 'ㅈ',
+                'ㅂ', 'ㅂ', 'ㅅ', 'ㅅ', ' ㅇ', 'ㅈ', 'ㅈ',
                 'ㅈ', 'ㄱ', 'ㄷ', 'ㅂ', ' ㅎ']
     if len(c) != 1:
         raise ValueError(
@@ -54,7 +55,7 @@ def parse_number(s):
 
 Literal = namedtuple('Literal', 'value')  # integer
 FunRef = namedtuple('FunRef', 'rel')  # nonnegative integer
-ArgRef = namedtuple('ArgRef', 'relF relA')  # both nonnegative integer
+ArgRef = namedtuple('ArgRef', 'relA relF')  # relF nonnegative integer
 FunDef = namedtuple('FunDef', 'body')
 BuiltinFun = namedtuple('BuiltinFun', 'id')  # integer
 FunCall = namedtuple('FunCall', 'fun argv')
@@ -86,13 +87,23 @@ def parse_word(word, stack):
             return stack + [FunDef(body)]
         
     elif 'ㅇ' in word:
-        relA, relF = word.split('ㅇ')
-        relF = abs(parse_number(relF)) if relF else 0
-        if not relA:  # FunRef
+        _, trailer = word.split('ㅇ')  # Assume space before every ㅇ
+
+        if trailer:  # ArgRef
+            relF = parse_number(trailer)
+            relA = stack.pop()
+            return stack + [ArgRef(relA, relF)]
+
+        else:  # FunRef
+            relF = stack.pop()
+            if not isinstance(relF, Literal):
+                raise ValueError(
+                    'Function reference admits integer literals only, ' +
+                    'but received: {}'.format(relF))
+            else:
+                relF = relF.value
             return stack + [FunRef(relF)]
-        else:  # ArgRef
-            relA = abs(parse_number(relA))
-            return stack + [ArgRef(relF, relA)]
+
     else:
         return stack + [Literal(parse_number(word))]
 
@@ -137,7 +148,7 @@ Closure = namedtuple('Closure', 'body env')
 Expr = namedtuple('Expr', 'expr env')
 
 
-def make_bool(pred, env):
+def encode_bool(pred, env):
     '''Encodes a boolean into Church boolean
     Args:
         pred: boolean to encode.
@@ -145,9 +156,31 @@ def make_bool(pred, env):
     Returns:
         A closure which includes the church-encoded boolean value
     '''
-    idx = 0 if pred else 1
-    fundef = FunDef(ArgRef(0, idx))
+    idx = Literal(0 if pred else 1)
+    fundef = FunDef(ArgRef(idx, 0))
     return interpret(fundef, env)
+
+
+def decode_bool(value):
+    '''Decodes Church boolean into Python bool
+    Args:
+        value: Closure value encoding church boolean
+    Returns:
+        Corresponding Python bool
+    '''
+    value = strict(value)
+    err_msg = 'Expected boolean, received: {}'.format(value)
+    if not isinstance(value, Closure):
+        raise ValueError(err_msg)
+    if not isinstance(value.body, ArgRef):
+        raise ValueError(err_msg)
+    f, a = value.body
+    if f == 0 and a.value == 0:
+        return True
+    elif f == 0 and a.value == 1:
+        return False
+    else:
+        raise ValueError(err_msg)
 
 
 def strict(value):
@@ -182,10 +215,10 @@ def proc_builtin(i, argv, env):  # ㄱㄴㄷ[ㄹㅁㅂ]ㅅㅈ
         return Number(argv[0].value ** argv[1].value)
     if i == 7:  # ㅈ: 작다
         argv = [strict(a) for a in argv]
-        return make_bool(argv[0].value < argv[1].value, env)
+        return encode_bool(argv[0].value < argv[1].value, env)
     if i == 1:  # ㄴ: 같다
         argv = [strict(a) for a in argv]
-        return make_bool(argv[0].value == argv[1].value, env)
+        return encode_bool(argv[0].value == argv[1].value, env)
 
 
 def interpret(expr, env):
@@ -198,8 +231,18 @@ def interpret(expr, env):
 
     elif isinstance(expr, ArgRef):
         assert len(env.funs) == len(env.args)
-        relF, relA = expr
-        return env.args[-relF-1][relA]
+        relA, relF = expr
+        args = env.args[-relF-1]
+
+        relA = strict(interpret(relA, env))
+        relA = int(round(abs(relA.value)))
+
+        if relA >= len(args):
+            raise ValueError(
+                'Out of Range: {} arguments received ' +
+                'but {}-th argument requested'.format(len(args), relA))
+        else:
+            return args[relA]
 
     elif isinstance(expr, FunDef):
         body = expr.body
@@ -212,7 +255,7 @@ def interpret(expr, env):
 
     elif isinstance(expr, FunCall):
         fun, argv = expr
-        arguments = [Expr(arg, env) for arg in argv]
+        arguments = [Expr(arg, env) for arg in argv]  # lazy eval
         if isinstance(fun, BuiltinFun):
             return proc_builtin(fun.id, arguments, env)
 
@@ -231,13 +274,11 @@ def to_printable(value):
     if isinstance(value, Number):
         return value.value
     elif isinstance(value, Closure):
-        if isinstance(value.body, ArgRef):
-            f, a = value.body
-            if f == 0 and a == 0:
-                return True
-            elif f == 0 and a == 1:
-                return False
-        return '<Closure created at depth {}>'.format(len(value.env.args)-1)
+        try:
+            return decode_bool(value)
+        except ValueError:
+            return '<Closure created at depth {}>'.format(
+                len(value.env.args)-1)
     elif isinstance(value, Expr):
         return to_printable(strict(value))
     else:
