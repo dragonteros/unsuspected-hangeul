@@ -113,7 +113,7 @@
 
 ```
 def func(*argv):
-  idx := int(round(abs(argv[0])))
+  idx := int(round(argv[0]))
   return argv[idx]
 ```
 
@@ -122,7 +122,7 @@ def func(*argv):
 ```
 def func(*argv):
   idx := argv[0] + 1
-  idx := int(round(abs(idx)))
+  idx := int(round(idx))
   return argv[idx]
 ```
 
