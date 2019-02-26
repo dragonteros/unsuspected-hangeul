@@ -6,6 +6,12 @@ v0.2
 * ㅇ의 행동을 변경했습니다.
   - 인수 위치를 정수 리터럴로만 지정 가능 -> 동적으로 평가해 그 값으로 지정 가능
   - 주의: v0.1의 행동과 호환이 되지 않습니다.
+* 기본 함수 ㄹ, ㅁ을 추가했습니다.
+    - ㄹ: 표준 입력
+      * 알려진 문제: 현재 구현체는 게으른(lazy) 평가를 사용하기 때문에
+          `ㄹㅎㄱ ㄱㅇㄱ ㄱㅇㄱ ㄷㅎㄷ ㅎ ㅎㄴ`를 실행하면
+          입력을 따로 두 번 받는 문제가 있습니다.
+    - ㅁ: 논리 부정
 '''
 from collections import namedtuple
 import sys
@@ -79,8 +85,9 @@ def parse_word(word, stack):
             if isinstance(fun, Literal):
                 fun = BuiltinFun(fun.value)
 
-            argv = stack[-arity:]
-            return stack[:-arity] + [FunCall(fun, argv)]
+            argv = stack[-arity:] if arity else []
+            rest = stack[:-arity] if arity else stack
+            return rest + [FunCall(fun, argv)]
 
         else:  # FunDef
             body = stack.pop()
@@ -174,7 +181,7 @@ def decode_bool(value):
         raise ValueError(err_msg)
     if not isinstance(value.body, ArgRef):
         raise ValueError(err_msg)
-    f, a = value.body
+    a, f = value.body
     if f == 0 and a.value == 0:
         return True
     elif f == 0 and a.value == 1:
@@ -201,24 +208,36 @@ def proc_builtin(i, argv, env):  # ㄱㄴㄷ[ㄹㅁㅂ]ㅅㅈ
     Returns:
         Return value of the built-in function
     '''
-    if i == 2:  # ㄷ: 덧셈
-        argv = [strict(a) for a in argv]
-        return Number(sum([a.value for a in argv]))
-    if i == 0:  # ㄱ: 곱셈
+    # 산술 연산
+    if i == parse_number('ㄱ'):  # 곱셈
         argv = [strict(a) for a in argv]
         product = 1.0
         for a in argv:
             product *= a.value
         return Number(product)
-    if i == 6:  # ㅅ: 거듭제곱
+    if i == parse_number('ㄷ'):  # 덧셈
+        argv = [strict(a) for a in argv]
+        return Number(sum([a.value for a in argv]))
+    if i == parse_number('ㅅ'):  # 거듭제곱
         argv = [strict(a) for a in argv]
         return Number(argv[0].value ** argv[1].value)
-    if i == 7:  # ㅈ: 작다
-        argv = [strict(a) for a in argv]
-        return encode_bool(argv[0].value < argv[1].value, env)
-    if i == 1:  # ㄴ: 같다
+
+    # 논리 연산
+    if i == parse_number('ㄴ'):  # 같다 (<-는)
         argv = [strict(a) for a in argv]
         return encode_bool(argv[0].value == argv[1].value, env)
+    if i == parse_number('ㅁ'):  # 부정 (<-못하다)
+        argv = [strict(a) for a in argv]
+        value = decode_bool(argv[0])
+        return encode_bool(not value, env)
+    if i == parse_number('ㅈ'):  # 작다
+        argv = [strict(a) for a in argv]
+        return encode_bool(argv[0].value < argv[1].value, env)
+
+    # 입력
+    if i == parse_number('ㄹ'):  # 읽기
+        value = input('')
+        return Number(float(value) if value else 0)
 
 
 def interpret(expr, env):
