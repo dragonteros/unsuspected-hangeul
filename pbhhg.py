@@ -181,7 +181,11 @@ def decode_bool(value):
         raise ValueError(err_msg)
     if not isinstance(value.body, ArgRef):
         raise ValueError(err_msg)
+
     a, f = value.body
+    if not isinstance(a, Literal):
+        raise ValueError(err_msg)
+
     if f == 0 and a.value == 0:
         return True
     elif f == 0 and a.value == 1:
