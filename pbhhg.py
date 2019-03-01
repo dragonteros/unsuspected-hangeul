@@ -2,16 +2,8 @@
 함수형 난해한 언어 '평범한 한글'의 구현체입니다.
 
 Updates
-v0.2
-* ㅇ의 행동을 변경했습니다.
-  - 인수 위치를 정수 리터럴로만 지정 가능 -> 동적으로 평가해 그 값으로 지정 가능
-  - 주의: v0.1의 행동과 호환이 되지 않습니다.
-* 기본 함수 ㄹ, ㅁ을 추가했습니다.
-    - ㄹ: 표준 입력
-      * 알려진 문제: 현재 구현체는 게으른(lazy) 평가를 사용하기 때문에
-          `ㄹㅎㄱ ㄱㅇㄱ ㄱㅇㄱ ㄷㅎㄷ ㅎ ㅎㄴ`를 실행하면
-          입력을 따로 두 번 받는 문제가 있습니다.
-    - ㅁ: 논리 부정
+v0.3
+* 언어 차원에서 논릿값(Boolean) 지원을 추가했습니다.
 '''
 from collections import namedtuple
 import sys
@@ -60,8 +52,8 @@ def parse_number(s):
 
 
 Literal = namedtuple('Literal', 'value')  # integer
-FunRef = namedtuple('FunRef', 'rel')  # nonnegative integer
-ArgRef = namedtuple('ArgRef', 'relA relF')  # relF nonnegative integer
+FunRef = namedtuple('FunRef', 'rel')  # integer
+ArgRef = namedtuple('ArgRef', 'relA relF')  # relF integer
 FunDef = namedtuple('FunDef', 'body')
 BuiltinFun = namedtuple('BuiltinFun', 'id')  # integer
 FunCall = namedtuple('FunCall', 'fun argv')
@@ -137,70 +129,52 @@ def print_parse_tree(arg, indent=0):
     '''
     tab = ' ' * 2
     indenter = tab * indent
-    if isinstance(arg, int) or isinstance(arg, list):
+    if isinstance(arg, int):
         print(indenter + str(arg))
-        return
+    elif isinstance(arg, list):
+        for i, a in enumerate(arg):
+            print(indenter + '[{}]'.format(i))
+            print_parse_tree(a, indent + 2)
+    else:
+        typename = type(arg).__name__
+        print(indenter + typename)
+        for field in arg._fields:
+            print(indenter + tab + field)
+            print_parse_tree(getattr(arg, field), indent + 2)
 
-    typename = type(arg).__name__
-    print(indenter + typename)
-    for field in arg._fields:
-        print(indenter + tab + field)
-        print_parse_tree(getattr(arg, field), indent + 2)
 
-
-Env = namedtuple('Env', 'funs args')
+Env = namedtuple('Env', 'funs args')  # store module name?
 
 Number = namedtuple('Number', 'value')
+Boolean = namedtuple('Boolean', 'value')
 Closure = namedtuple('Closure', 'body env')
-Expr = namedtuple('Expr', 'expr env')
-
-
-def encode_bool(pred, env):
-    '''Encodes a boolean into Church boolean
-    Args:
-        pred: boolean to encode.
-        env: current environment.
-    Returns:
-        A closure which includes the church-encoded boolean value
-    '''
-    idx = Literal(0 if pred else 1)
-    fundef = FunDef(ArgRef(idx, 0))
-    return interpret(fundef, env)
-
-
-def decode_bool(value):
-    '''Decodes Church boolean into Python bool
-    Args:
-        value: Closure value encoding church boolean
-    Returns:
-        Corresponding Python bool
-    '''
-    value = strict(value)
-    err_msg = 'Expected boolean, received: {}'.format(value)
-    if not isinstance(value, Closure):
-        raise ValueError(err_msg)
-    if not isinstance(value.body, ArgRef):
-        raise ValueError(err_msg)
-
-    a, f = value.body
-    if not isinstance(a, Literal):
-        raise ValueError(err_msg)
-
-    if f == 0 and a.value == 0:
-        return True
-    elif f == 0 and a.value == 1:
-        return False
-    else:
-        raise ValueError(err_msg)
+Expr = namedtuple('Expr', 'expr env cache_box')
 
 
 def strict(value):
     '''Forces strict evaluation of the value'''
     if isinstance(value, Expr):
-        expr, env = value
-        return strict(interpret(expr, env))
+        expr, env, cache_box = value
+        if cache_box:
+            return cache_box[0]
+        else:
+            cache = strict(interpret(expr, env))
+            value.cache_box.append(cache)
+            return cache
     else:
         return value
+
+
+def arity_check(argv, desired_arity):
+    if len(argv) != desired_arity:
+        raise ValueError('{} arguments expected but received {}.'
+                         .format(desired_arity, len(argv)))
+
+
+def type_check(argv, desired_type):
+    if any([not isinstance(arg, desired_type) for arg in argv]):
+        raise ValueError('Arguments of type {} expected but received {}.'
+                         .format(desired_type, argv))
 
 
 def proc_builtin(i, argv, env):  # ㄱㄴㄷ[ㄹㅁㅂ]ㅅㅈ
@@ -215,31 +189,48 @@ def proc_builtin(i, argv, env):  # ㄱㄴㄷ[ㄹㅁㅂ]ㅅㅈ
     # 산술 연산
     if i == parse_number('ㄱ'):  # 곱셈
         argv = [strict(a) for a in argv]
+        type_check(argv, Number)
         product = 1.0
         for a in argv:
             product *= a.value
         return Number(product)
     if i == parse_number('ㄷ'):  # 덧셈
         argv = [strict(a) for a in argv]
+        type_check(argv, Number)
         return Number(sum([a.value for a in argv]))
     if i == parse_number('ㅅ'):  # 거듭제곱
+        arity_check(argv, 2)
         argv = [strict(a) for a in argv]
+        type_check(argv, Number)
         return Number(argv[0].value ** argv[1].value)
 
     # 논리 연산
     if i == parse_number('ㄴ'):  # 같다 (<-는)
+        arity_check(argv, 2)
         argv = [strict(a) for a in argv]
-        return encode_bool(argv[0].value == argv[1].value, env)
+        if type(argv[0]) != type(argv[1]):
+            raise ValueError('Argument type mismatch: {}'.format(argv))
+        return Boolean(argv[0].value == argv[1].value)
     if i == parse_number('ㅁ'):  # 부정 (<-못하다)
+        arity_check(argv, 1)
         argv = [strict(a) for a in argv]
-        value = decode_bool(argv[0])
-        return encode_bool(not value, env)
+        type_check(argv, Boolean)
+        return Boolean(not argv[0].value, env)
     if i == parse_number('ㅈ'):  # 작다
+        arity_check(argv, 2)
         argv = [strict(a) for a in argv]
-        return encode_bool(argv[0].value < argv[1].value, env)
+        type_check(argv, Number)
+        return Boolean(argv[0].value < argv[1].value)
+    if i == parse_number('ㅈㅈ'):  # True (<-진짜)
+        arity_check(argv, 0)
+        return Boolean(True)
+    if i == parse_number('ㄱㅈ'):  # False (<-거짓)
+        arity_check(argv, 0)
+        return Boolean(False)
 
     # 입력
     if i == parse_number('ㄹ'):  # 읽기
+        arity_check(argv, 0)
         value = input('')
         return Number(float(value) if value else 0)
 
@@ -258,9 +249,14 @@ def interpret(expr, env):
         args = env.args[-relF-1]
 
         relA = strict(interpret(relA, env))
-        relA = int(round(abs(relA.value)))
+        type_check([relA], Number)
+        relA = int(round(relA.value))
 
-        if relA >= len(args):
+        if relA < 0:
+            raise ValueError(
+                'Tried to reference argument with negative index: {}'
+                .format(relA))
+        elif relA >= len(args):
             raise ValueError(
                 'Out of Range: {} arguments received ' +
                 'but {}-th argument requested'.format(len(args), relA))
@@ -278,32 +274,39 @@ def interpret(expr, env):
 
     elif isinstance(expr, FunCall):
         fun, argv = expr
-        arguments = [Expr(arg, env) for arg in argv]  # lazy eval
+        arguments = [Expr(arg, env, []) for arg in argv]  # lazy eval
         if isinstance(fun, BuiltinFun):
             return proc_builtin(fun.id, arguments, env)
 
-        body, canned_env = strict(interpret(fun, env))
+        fun_value = strict(interpret(fun, env))
+        if isinstance(fun_value, Number):
+            return ValueError('Number is not callable.')
 
-        canned_funs, canned_args = canned_env
-        new_env = Env(canned_funs, canned_args + [arguments])
+        elif isinstance(fun_value, Boolean):
+            arity_check(arguments, 2)
+            return arguments[0 if fun_value.value else 1]
 
-        return interpret(body, new_env)
+        elif isinstance(fun_value, Closure):
+            body, canned_env = fun_value
+
+            canned_funs, canned_args = canned_env
+            new_env = Env(canned_funs, canned_args + [arguments])
+
+            return interpret(body, new_env)
     else:
         raise ValueError('Unexpected expression: {}'.format(expr))
 
 
 def to_printable(value):
     '''Converts the value into a printable Python object'''
+    value = strict(value)
     if isinstance(value, Number):
         return value.value
+    elif isinstance(value, Boolean):
+        return value.value
     elif isinstance(value, Closure):
-        try:
-            return decode_bool(value)
-        except ValueError:
-            return '<Closure created at depth {}>'.format(
-                len(value.env.args)-1)
-    elif isinstance(value, Expr):
-        return to_printable(strict(value))
+        return '<Closure created at depth {}>'.format(
+            len(value.env.args)-1)
     else:
         raise ValueError('Unexpected value: {}'.format(value))
 
@@ -318,16 +321,7 @@ def main(arg):
     stack = parse(arg)
     env = Env([None], [[]])
     values = [interpret(expr, env) for expr in stack]
-
-    if len(values) == 1:
-        return str(to_printable(values[0]))
-    else:
-        if any([isinstance(v, Closure) for v in values]):
-            return ' '.join([str(to_printable(v)) for v in values])
-        else:
-            numbers = [to_printable(v) for v in values]
-            string = [chr(int(round(n))) for n in numbers]
-            return ''.join(string)
+    return ' '.join([str(to_printable(v)) for v in values])
 
 
 if __name__ == '__main__':
