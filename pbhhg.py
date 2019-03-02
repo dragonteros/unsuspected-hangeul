@@ -73,6 +73,9 @@ def parse_word(word, stack):
 
         if arity:  # FunCall
             arity = parse_number(arity)
+            if arity < 0:
+                raise ValueError('Function call with negative number of arguments: {}'.format(arity))
+
             fun = stack.pop()
             if isinstance(fun, Literal):
                 fun = BuiltinFun(fun.value)
@@ -215,7 +218,7 @@ def proc_builtin(i, argv, env):  # ㄱㄴㄷ[ㄹㅁㅂ]ㅅㅈ
         arity_check(argv, 1)
         argv = [strict(a) for a in argv]
         type_check(argv, Boolean)
-        return Boolean(not argv[0].value, env)
+        return Boolean(not argv[0].value)
     if i == parse_number('ㅈ'):  # 작다
         arity_check(argv, 2)
         argv = [strict(a) for a in argv]
