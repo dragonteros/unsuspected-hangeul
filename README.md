@@ -182,8 +182,7 @@ def func(*argv):
 * Python 구현체
   * `python pbhhg.py` => stdin에서 줄별로 문자열을 읽어 각각을 실행해 결과 출력
   * `python pbhhg.py [문자열]` => 주어진 문자열을 실행해서 결과 출력
-* JS 구현체
-  * 브라우저로 `pbhhg.html`를 열어 코드를 적은 뒤 실행 버튼 누르기
+* JS 구현체: [`pbhhg.html`](https://dragonteros.github.io/unsuspected-hangeul/pbhhg.html)
 * C++ 구현체: [kmc7468/unsuspected-hangeul-cpp](https://github.com/kmc7468/unsuspected-hangeul-cpp)
 
 
