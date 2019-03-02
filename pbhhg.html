@@ -1,0 +1,84 @@
+﻿<!DOCTYPE html>
+<meta charset="utf-8"/>
+<html>
+  <head>
+    <title>평범한 한글 JS 인터프리터</title>
+    <script src='pbhhg.js' charset="UTF-8"></script>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        background-color: #111;
+        margin: 0;
+      }
+      @media (min-width: 610px) {
+        .wrapper {
+          width: 600px;
+          display: inline-block;
+        }
+      }
+      @media (max-width: 610px) {
+        .wrapper {
+          width: 100%;
+          display: inline-block;
+        }
+      }
+      header .wrapper * {
+        float: right;
+      }
+      header {
+        width: 100%;
+        top: 0;
+        position: fixed;
+        background-color: #333;
+        text-align: center
+      }
+      button {
+      }
+      main {
+        margin-top: 2em;
+        text-align: center
+      }
+      textarea {
+        color: #ddd;
+        background-color: #222;
+        font-family: serif;
+        width: 100%;
+        border: none;
+      }
+      #output {
+        text-align: justify;
+        width: 100%;
+        background-color: #333;
+        color: #ccc;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class='wrapper'>
+        <button onclick='run()'>실행</button>
+        <button onclick='clean()'>치우기</button>
+      </div>
+    </header>
+    <main>
+      <div class='wrapper'>
+        <textarea id='code' rows=20>날마다 날마다 늘어간 기약과 더하던 후회다.</textarea>
+        <div id='output'>결과: 322</div>
+      </div>
+    </main>
+
+    <script>
+      var code = document.getElementById('code')
+      var output = document.getElementById('output')
+      function clean() {
+        code.value = '';
+        output.innerHTML = '결과:';
+      }
+      function run() {
+        output.innerHTML = '결과: ' + main(code.value);
+      }
+    </script>
+  </body>
+</html>

@@ -177,7 +177,7 @@ def type_check(argv, desired_type):
                          .format(desired_type, argv))
 
 
-def proc_builtin(i, argv, env):  # ㄱㄴㄷ[ㄹㅁㅂ]ㅅㅈ
+def proc_builtin(i, argv, env):
     '''Execute the built-in function with given arguments and environement
     Args:
         i: Built-in Function ID
@@ -215,7 +215,7 @@ def proc_builtin(i, argv, env):  # ㄱㄴㄷ[ㄹㅁㅂ]ㅅㅈ
         arity_check(argv, 1)
         argv = [strict(a) for a in argv]
         type_check(argv, Boolean)
-        return Boolean(not argv[0].value, env)
+        return Boolean(not argv[0].value)
     if i == parse_number('ㅈ'):  # 작다
         arity_check(argv, 2)
         argv = [strict(a) for a in argv]
@@ -258,8 +258,8 @@ def interpret(expr, env):
                 .format(relA))
         elif relA >= len(args):
             raise ValueError(
-                'Out of Range: {} arguments received ' +
-                'but {}-th argument requested'.format(len(args), relA))
+                ('Out of Range: {} arguments received ' +
+                'but {}-th argument requested').format(len(args), relA))
         else:
             return args[relA]
 
@@ -280,7 +280,7 @@ def interpret(expr, env):
 
         fun_value = strict(interpret(fun, env))
         if isinstance(fun_value, Number):
-            return ValueError('Number is not callable.')
+            raise ValueError('Number is not callable.')
 
         elif isinstance(fun_value, Boolean):
             arity_check(arguments, 2)
@@ -293,8 +293,7 @@ def interpret(expr, env):
             new_env = Env(canned_funs, canned_args + [arguments])
 
             return interpret(body, new_env)
-    else:
-        raise ValueError('Unexpected expression: {}'.format(expr))
+    raise ValueError('Unexpected expression: {}'.format(expr))
 
 
 def to_printable(value):
