@@ -77,7 +77,13 @@
         output.innerHTML = '결과:';
       }
       function run() {
-        output.innerHTML = '결과: ' + main(code.value);
+        var result;
+        try {
+          result = '결과: ' + main(code.value);
+        } catch (error) {
+          result = '문제가 생겼습니다. ' + error;
+        }
+        output.innerHTML = result;
       }
     </script>
   </body>
