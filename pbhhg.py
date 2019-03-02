@@ -73,6 +73,9 @@ def parse_word(word, stack):
 
         if arity:  # FunCall
             arity = parse_number(arity)
+            if arity < 0:
+                raise ValueError('Function call with negative number of arguments: {}'.format(arity))
+
             fun = stack.pop()
             if isinstance(fun, Literal):
                 fun = BuiltinFun(fun.value)
