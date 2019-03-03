@@ -180,16 +180,16 @@ function proc_builtin(i, argv, env) {
             argv = argv.map(strict)
             type_check(argv, NumberV)
             var product = argv.reduce(function (a, b) {
-                return a.value * b.value;
-            })
-            return new NumberV(product);
+                return new NumberV(a.value * b.value);
+            }, new NumberV(1))
+            return product;
         case parse_number('ㄷ'):
             argv = argv.map(strict)
             type_check(argv, NumberV)
             var sum = argv.reduce(function (a, b) {
-                return a.value + b.value;
-            })
-            return new NumberV(sum);
+                return new NumberV(a.value + b.value);
+            }, new NumberV(0))
+            return sum;
         case parse_number('ㅅ'):
             arity_check(argv, 2)
             argv = argv.map(strict)
