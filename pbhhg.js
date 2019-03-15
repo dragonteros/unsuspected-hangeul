@@ -139,6 +139,10 @@ function ClosureV(body, env) {
     this.body = body;
     this.env = env;
 }
+function IOV(argument, binder) {
+    this.argument = argument;
+    this.binder = binder;
+}
 function ExprV(expr, env, cache) {
     this.expr = expr;
     this.env = env;
@@ -173,7 +177,7 @@ Args:
     env: Current environment
 Returns:
     Return value of the built-in function */
-function proc_builtin(i, argv, env) {
+function proc_builtin(i, argv) {
     switch (i) {
         // 산술 연산
         case parse_number('ㄱ'):
@@ -201,7 +205,8 @@ function proc_builtin(i, argv, env) {
         case parse_number('ㄴ'):
             arity_check(argv, 2)
             argv = argv.map(strict)
-            if (argv[0].constructor != argv[1].constructor)
+            if (!(argv.every(function(a){return a instanceof NumberV})
+                || argv.every(function(a){return a instanceof BooleanV})))
                 throw 'Argument type mismatch' + argv
             return new BooleanV(argv[0].value == argv[1].value)
         case parse_number('ㅁ'):
@@ -216,16 +221,21 @@ function proc_builtin(i, argv, env) {
             return new BooleanV(argv[0].value < argv[1].value)
         case parse_number('ㅈㅈ'):
             arity_check(argv, 0)
-            return new BooleanV(True)
+            return new BooleanV(true)
         case parse_number('ㄱㅈ'):
             arity_check(argv, 0)
-            return new BooleanV(False)
+            return new BooleanV(false)
         
         // 입력
         case parse_number('ㄹ'):
             arity_check(argv, 0)
-            value = Number(prompt())
-            return new NumberV(value)
+            return new IOV(null, null)
+        case parse_number('ㄱㅅ'):
+            arity_check(argv, 1)
+            return new IOV(argv[0], null)
+        case parse_number('ㄱㄹ'):
+            arity_check(argv, 2)
+            return new IOV(argv[0], argv[1])
     }
 }
 
@@ -261,7 +271,7 @@ function interpret(expr, env) {
             return new ExprV(arg, env, null)
         })
         if (expr.fun instanceof BuiltinFun) {
-            return proc_builtin(expr.fun.id, argv, env)
+            return proc_builtin(expr.fun.id, argv)
         }
 
         var fun_value = strict(interpret(expr.fun, env))
@@ -280,6 +290,31 @@ function interpret(expr, env) {
     throw 'Unexpected expression: ' + expr
 }
 
+/* Receives an IOV and produces the result */
+function do_IO(io_value) {
+    if (!(io_value instanceof IOV))
+        throw 'IO expected but received ' + io_value
+    if (io_value.argument == null) {
+        return new NumberV(Number(prompt()))
+    } else if (io_value.binder == null) {
+        return io_value.argument
+    } else {
+        var arg = strict(io_value.argument)
+        var binder = strict(io_value.binder)
+        if (!(arg instanceof IOV)) {
+            throw 'Bind expects an IO as its 0th argument but received ' + arg
+        }
+        if (!(binder instanceof ClosureV)) {
+            throw 'Bind expects a closure as its 1st argument but received ' + binder
+        }
+        var argv = [do_IO(arg)]
+        var env = binder.env
+        var new_env = new Env(env.funs, env.args.concat([argv]))
+        return do_IO(interpret(binder.body, new_env))
+    }
+}
+
+
 /* Converts the value into a printable JS object */
 function to_printable(value) {
     value = strict(value)
@@ -289,6 +324,8 @@ function to_printable(value) {
         return value.value
     } else if (value instanceof ClosureV) {
         return '&lt;Closure created at depth ' + (value.env.args.length-1) + '&gt;'
+    } else if (value instanceof IOV) {
+        return to_printable(do_IO(value))
     } else {
         throw 'Unexpected value: ' + value
     }

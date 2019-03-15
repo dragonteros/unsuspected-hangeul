@@ -2,8 +2,9 @@
 함수형 난해한 언어 '평범한 한글'의 구현체입니다.
 
 Updates
-v0.3
-* 언어 차원에서 논릿값(Boolean) 지원을 추가했습니다.
+v0.4
+* IO 모나드를 도입했습니다.
+  * 주의: v0.2와 v0.3의 입출력 행동과 호환되지 않습니다.
 '''
 from collections import namedtuple
 import sys
@@ -74,7 +75,8 @@ def parse_word(word, stack):
         if arity:  # FunCall
             arity = parse_number(arity)
             if arity < 0:
-                raise ValueError('Function call with negative number of arguments: {}'.format(arity))
+                raise ValueError(
+                    'Function call with negative number of arguments: {}'.format(arity))
 
             fun = stack.pop()
             if isinstance(fun, Literal):
@@ -87,7 +89,7 @@ def parse_word(word, stack):
         else:  # FunDef
             body = stack.pop()
             return stack + [FunDef(body)]
-        
+
     elif 'ㅇ' in word:
         _, trailer = word.split('ㅇ')  # Assume space before every ㅇ
 
@@ -113,7 +115,7 @@ def parse_word(word, stack):
 def parse(sentence):
     '''Parses program into abstract syntax'''
     sentence = ''.join([normalize_char(c) for c in sentence])
-    
+
     words = sentence.strip().split(' ')
     stack = []
     for word in words:
@@ -151,6 +153,7 @@ Env = namedtuple('Env', 'funs args')  # store module name?
 Number = namedtuple('Number', 'value')
 Boolean = namedtuple('Boolean', 'value')
 Closure = namedtuple('Closure', 'body env')
+IO = namedtuple('IO', 'argument binder')
 Expr = namedtuple('Expr', 'expr env cache_box')
 
 
@@ -180,7 +183,7 @@ def type_check(argv, desired_type):
                          .format(desired_type, argv))
 
 
-def proc_builtin(i, argv, env):
+def proc_builtin(i, argv):
     '''Execute the built-in function with given arguments and environement
     Args:
         i: Built-in Function ID
@@ -211,7 +214,8 @@ def proc_builtin(i, argv, env):
     if i == parse_number('ㄴ'):  # 같다 (<-는)
         arity_check(argv, 2)
         argv = [strict(a) for a in argv]
-        if type(argv[0]) != type(argv[1]):
+        if not (all([isinstance(arg, Number) for arg in argv]) or
+            all([isinstance(arg, Boolean) for arg in argv])):
             raise ValueError('Argument type mismatch: {}'.format(argv))
         return Boolean(argv[0].value == argv[1].value)
     if i == parse_number('ㅁ'):  # 부정 (<-못하다)
@@ -234,8 +238,13 @@ def proc_builtin(i, argv, env):
     # 입력
     if i == parse_number('ㄹ'):  # 읽기
         arity_check(argv, 0)
-        value = input('')
-        return Number(float(value) if value else 0)
+        return IO(None, None)
+    if i == parse_number('ㄱㅅ'):  # 감싸다
+        arity_check(argv, 1)
+        return IO(argv[0], None)
+    if i == parse_number('ㄱㄹ'):  # ~기로 하다
+        arity_check(argv, 2)
+        return IO(*argv)
 
 
 def interpret(expr, env):
@@ -261,8 +270,8 @@ def interpret(expr, env):
                 .format(relA))
         elif relA >= len(args):
             raise ValueError(
-                ('Out of Range: {} arguments received ' +
-                'but {}-th argument requested').format(len(args), relA))
+                ('Out of Range: {} arguments received '
+                 'but {}-th argument requested').format(len(args), relA))
         else:
             return args[relA]
 
@@ -279,7 +288,7 @@ def interpret(expr, env):
         fun, argv = expr
         arguments = [Expr(arg, env, []) for arg in argv]  # lazy eval
         if isinstance(fun, BuiltinFun):
-            return proc_builtin(fun.id, arguments, env)
+            return proc_builtin(fun.id, arguments)
 
         fun_value = strict(interpret(fun, env))
         if isinstance(fun_value, Number):
@@ -299,6 +308,30 @@ def interpret(expr, env):
     raise ValueError('Unexpected expression: {}'.format(expr))
 
 
+def do_IO(io_value):
+    '''Receives an IO and produces the result.'''
+    if not isinstance(io_value, IO):
+        raise ValueError('IO expected but received {}'.format(io_value))
+    arg, binder = io_value
+    if arg is None:  # read
+        return Number(float(input('')))
+    elif binder is None:  # return
+        return arg
+    else:  # bind
+        arg, binder = strict(arg), strict(binder)
+        if not isinstance(arg, IO):
+            raise ValueError(
+                'Bind expects an IO as its 0th argument but received {}'.format(arg))
+        if not isinstance(binder, Closure):
+            raise ValueError(
+                'Bind expects a closure as its 1st argument but received {}'.format(binder))
+        argv = [do_IO(arg)]
+        body, env = binder 
+        funs, args = env
+        new_env = Env(funs, args + [argv])
+        return do_IO(interpret(body, new_env))
+
+
 def to_printable(value):
     '''Converts the value into a printable Python object'''
     value = strict(value)
@@ -309,6 +342,8 @@ def to_printable(value):
     elif isinstance(value, Closure):
         return '<Closure created at depth {}>'.format(
             len(value.env.args)-1)
+    elif isinstance(value, IO):
+        return to_printable(do_IO(value))
     else:
         raise ValueError('Unexpected value: {}'.format(value))
 
