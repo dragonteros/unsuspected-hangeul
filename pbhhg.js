@@ -293,7 +293,8 @@ function interpret(expr, env) {
 /* Receives an IOV and produces the result */
 function do_IO(io_value) {
     if (!(io_value instanceof IOV))
-        throw 'IO expected but received ' + io_value
+        return io_value;
+        // throw 'IO expected but received ' + io_value
     if (io_value.argument == null) {
         return new NumberV(Number(prompt()))
     } else if (io_value.binder == null) {
