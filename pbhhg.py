@@ -311,7 +311,8 @@ def interpret(expr, env):
 def do_IO(io_value):
     '''Receives an IO and produces the result.'''
     if not isinstance(io_value, IO):
-        raise ValueError('IO expected but received {}'.format(io_value))
+        return io_value
+        # raise ValueError('IO expected but received {}'.format(io_value))
     arg, binder = io_value
     if arg is None:  # read
         return Number(float(input('')))
