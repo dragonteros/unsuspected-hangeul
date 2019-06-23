@@ -2,90 +2,102 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <html>
-  <head>
-    <title>평범한 한글 JS 인터프리터</title>
-    <script src='pbhhg.js' charset="UTF-8"></script>
-    <style>
-      * {
-        box-sizing: border-box;
-      }
-      body {
-        background-color: #111;
-        margin: 0;
-      }
-      @media (min-width: 610px) {
-        .wrapper {
-          width: 600px;
-          display: inline-block;
-        }
-      }
-      @media (max-width: 610px) {
-        .wrapper {
-          width: 100%;
-          display: inline-block;
-        }
-      }
-      header .wrapper * {
-        float: right;
-      }
-      header {
-        width: 100%;
-        top: 0;
-        position: fixed;
-        background-color: #333;
-        text-align: center
-      }
-      button {
-      }
-      main {
-        margin-top: 2em;
-        text-align: center
-      }
-      textarea {
-        color: #ddd;
-        background-color: #222;
-        font-family: serif;
-        width: 100%;
-        border: none;
-      }
-      #output {
-        text-align: justify;
-        width: 100%;
-        background-color: #333;
-        color: #ccc;
-      }
-    </style>
-  </head>
-  <body>
-    <header>
-      <div class='wrapper'>
-        <button onclick='run()'>실행</button>
-        <button onclick='clean()'>치우기</button>
-      </div>
-    </header>
-    <main>
-      <div class='wrapper'>
-        <textarea id='code' rows=20>날마다 날마다 늘어간 기약과 더하던 후회다.</textarea>
-        <div id='output'>결과: 322</div>
-      </div>
-    </main>
 
-    <script>
-      var code = document.getElementById('code')
-      var output = document.getElementById('output')
-      function clean() {
-        code.value = '';
-        output.innerHTML = '결과:';
+<head>
+  <title>평범한 한글 JS 인터프리터</title>
+  <script src='pbhhg.js' charset="UTF-8"></script>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      background-color: #111;
+      margin: 0;
+    }
+
+    @media (min-width: 610px) {
+      .wrapper {
+        width: 600px;
+        display: inline-block;
       }
-      function run() {
-        var result;
-        try {
-          result = '결과: ' + main(code.value);
-        } catch (error) {
-          result = '문제가 생겼습니다. ' + error;
-        }
-        output.innerHTML = result;
+    }
+
+    @media (max-width: 610px) {
+      .wrapper {
+        width: 100%;
+        display: inline-block;
       }
-    </script>
-  </body>
+    }
+
+    header .wrapper * {
+      float: right;
+    }
+
+    header {
+      width: 100%;
+      top: 0;
+      position: fixed;
+      background-color: #333;
+      text-align: center
+    }
+
+    main {
+      margin-top: 2em;
+      text-align: center
+    }
+
+    textarea {
+      color: #ddd;
+      background-color: #222;
+      font-family: serif;
+      width: 100%;
+      border: none;
+    }
+
+    #output {
+      text-align: justify;
+      width: 100%;
+      background-color: #333;
+      color: #ccc;
+    }
+  </style>
+</head>
+
+<body>
+  <header>
+    <div class='wrapper'>
+      <button onclick='run()'>실행</button>
+      <button onclick='clean()'>치우기</button>
+    </div>
+  </header>
+  <main>
+    <div class='wrapper'>
+      <textarea id='code' rows=20>날마다 날마다 늘어간 기약과 더하던 후회다.</textarea>
+      <div id='output'>결과: 322</div>
+    </div>
+  </main>
+
+  <script>
+    var code = document.getElementById('code')
+    var output = document.getElementById('output')
+    function clean() {
+      code.value = '';
+      output.innerHTML = '결과:';
+    }
+    function run() {
+      var result;
+      try {
+        result = '결과: ' + main(code.value);
+      } catch (error) {
+        result = '문제가 생겼습니다. ' + error;
+      }
+      output.innerHTML = result;
+    }
+    code.addEventListener('keydown', e => {
+      if (e.ctrlKey && e.key == 'Enter') run()
+    })
+  </script>
+</body>
+
 </html>
