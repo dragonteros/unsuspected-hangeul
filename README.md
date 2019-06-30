@@ -245,3 +245,7 @@ def func(*argv):
   * map, filter, reduce 등
 
 * 언어 차원에서 문자열 지원이 추가될 수 있습니다.
+
+## ㅂ. 함께 보기
+
+* [평범한 한글 배우기 by @andrea9292](https://www.notion.so/e75c59b8c4514f87822011f2f08715c6)
