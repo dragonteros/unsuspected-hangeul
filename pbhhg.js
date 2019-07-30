@@ -1,335 +1,645 @@
-﻿/** Normalizer **/
+/** Normalizer **/
 
 /* Normalizes each character into standard form */
-function normalize_char(c) {
-    function getidx(ref, divisor=1) {
-        return Math.floor((c.charCodeAt(0) - ref.charCodeAt(0))/divisor)
-    }
-    // note all ㅇ and ㅎ has a preceding space in following tables
-    var jamo = ['ㄱ', 'ㄱ', 'ㄱㅅ', 'ㄴ', 'ㄴㅈ', 'ㄴ ㅎ',
-        'ㄷ', 'ㄷ', 'ㄹ', 'ㄹㄱ', 'ㄹㅁ', 'ㄹㅂ',
-        'ㄹㅅ', 'ㄹㄷ', 'ㄹㅂ', 'ㄹ ㅎ', 'ㅁ', 'ㅂ',
-        'ㅂ', 'ㅂㅅ', 'ㅅ', 'ㅅ', ' ㅇ', 'ㅈ', 'ㅈ',
-        'ㅈ', 'ㄱ', 'ㄷ', 'ㅂ', ' ㅎ']
-    var choseong = ['ㄱ', 'ㄱ', 'ㄴ', 'ㄷ', 'ㄷ', 'ㄹ', 'ㅁ',
-        'ㅂ', 'ㅂ', 'ㅅ', 'ㅅ', ' ㅇ', 'ㅈ', 'ㅈ',
-        'ㅈ', 'ㄱ', 'ㄷ', 'ㅂ', ' ㅎ']
-    if (c.length != 1)
-        throw '[normalize_char] Length of string should be 1, not ' + c.length + ': ' + c;
-    if ('ㄱ' <= c && c <= 'ㅎ') {
-        return jamo[getidx('ㄱ')]
-    } else if ('가' <= c && c <= '힣') {
-        return choseong[getidx('가', 588)]
-    } else if ('\u1100' <= c && c <= '\u1112') {  // 첫가끝 초성
-        return choseong[getidx('\u1100')]
-    } else if ('\uFFA1' <= c && c <= '\uFFBE') {  // 반각
-        return jamo[getidx('\uFFA1')]
-    } else return ' ';
+function normalizeChar (c) {
+  function getidx (ref, divisor = 1) {
+    return Math.floor((c.charCodeAt(0) - ref.charCodeAt(0)) / divisor)
+  }
+  // note all ㅇ and ㅎ has a preceding space in following tables
+  var jamo = [
+    'ㄱ',
+    'ㄱ',
+    'ㄱㅅ',
+    'ㄴ',
+    'ㄴㅈ',
+    'ㄴ ㅎ',
+    'ㄷ',
+    'ㄷ',
+    'ㄹ',
+    'ㄹㄱ',
+    'ㄹㅁ',
+    'ㄹㅂ',
+    'ㄹㅅ',
+    'ㄹㄷ',
+    'ㄹㅂ',
+    'ㄹ ㅎ',
+    'ㅁ',
+    'ㅂ',
+    'ㅂ',
+    'ㅂㅅ',
+    'ㅅ',
+    'ㅅ',
+    ' ㅇ',
+    'ㅈ',
+    'ㅈ',
+    'ㅈ',
+    'ㄱ',
+    'ㄷ',
+    'ㅂ',
+    ' ㅎ'
+  ]
+  var choseong = [
+    'ㄱ',
+    'ㄱ',
+    'ㄴ',
+    'ㄷ',
+    'ㄷ',
+    'ㄹ',
+    'ㅁ',
+    'ㅂ',
+    'ㅂ',
+    'ㅅ',
+    'ㅅ',
+    ' ㅇ',
+    'ㅈ',
+    'ㅈ',
+    'ㅈ',
+    'ㄱ',
+    'ㄷ',
+    'ㅂ',
+    ' ㅎ'
+  ]
+  if (c.length !== 1) {
+    throw Error(
+      '[normalizeChar] Length of string should be 1, not ' + c.length + ': ' + c
+    )
+  }
+  if (c >= 'ㄱ' && c <= 'ㅎ') {
+    return jamo[getidx('ㄱ')]
+  } else if (c >= '가' && c <= '힣') {
+    return choseong[getidx('가', 588)]
+  } else if (c >= '\u1100' && c <= '\u1112') {
+    // 첫가끝 초성
+    return choseong[getidx('\u1100')]
+  } else if (c >= '\uFFA1' && c <= '\uFFBE') {
+    // 반각
+    return jamo[getidx('\uFFA1')]
+  } else return ' '
 }
 
 /* Parses jamo-encoded variable length integer into JS Number */
-function parse_number(s) {
-    var tbl = 'ㄱㄴㄷㄹㅁㅂㅅㅈ'
-    var varlen = s.split('').map(function (c) { return tbl.indexOf(c) })
-    if (varlen.some(function (idx) { return idx == -1 }))
-        throw '[parse_number] Argument ' + s + ' has an unsupported character';
-    var num = parseInt(varlen.reverse().join(''), 8)
-    if (s.length % 2 == 0)
-        num = -num;
-    return num
+function parseNumber (s) {
+  var tbl = 'ㄱㄴㄷㄹㅁㅂㅅㅈ'
+  var varlen = s.split('').map(function (c) {
+    return tbl.indexOf(c)
+  })
+  if (varlen.indexOf(-1) !== -1) {
+    throw SyntaxError('Argument ' + s + ' has an unsupported character')
+  }
+  var num = parseInt(varlen.reverse().join(''), 8)
+  if (s.length % 2 === 0) {
+    num = -num
+  }
+  return num
 }
-
 
 /** Parser **/
 
-function Literal(value) {
-    this.value = value;  // int
+/* AST */
+function Literal (value) {
+  this.value = value // int
 }
-function FunRef(rel) {
-    this.rel = rel;  // int
+function FunRef (rel) {
+  this.rel = rel // int
 }
-function ArgRef(relA, relF) {
-    this.relA = relA;
-    this.relF = relF;  // int
+function ArgRef (relA, relF) {
+  this.relA = relA
+  this.relF = relF // int
 }
-function FunDef(body) {
-    this.body = body;
+function FunDef (body) {
+  this.body = body
 }
-function BuiltinFun(id) {  // int
-    this.id = id;
+function BuiltinFun (id) {
+  // int
+  this.id = id
 }
-function FunCall(fun, argv) {
-    this.fun = fun;
-    this.argv = argv;
+function FunCall (fun, argv) {
+  this.fun = fun
+  this.argv = argv
 }
 
 /* Parses concrete syntax to abstract syntax
 Args:
     word: string. word to parse
-    stack: list of parsed legal arguments so far that we will modify */
-function parse_word(word, stack) {
-    if (word.indexOf('ㅎ') != -1) {
-        var arity = word.slice(1)
-        if (arity) {  // FunCall
-            arity = parse_number(arity)
-            fun = stack.pop()
-            if (fun instanceof Literal)
-                fun = new BuiltinFun(fun.value)
-            
-            if (arity == 0) {
-                stack.push(new FunCall(fun, []))
-            } else if (arity < 0) {
-                throw 'Function call with negative number of arguments: ' + arity;
-            } else {
-                argv = stack.splice(-arity, arity)
-                stack.push(new FunCall(fun, argv))
-            }
-        } else {  // FunDef
-            var body = stack.pop()
-            stack.push(new FunDef(body))
+    stack: list of parsed legal arguments so far that we will modify
+*/
+function parseWord (word, stack) {
+  if (word.indexOf('ㅎ') !== -1) {
+    var arity = word.slice(1)
+
+    if (arity) {
+      // FunCall
+      arity = parseNumber(arity)
+      if (arity < 0) {
+        throw SyntaxError(
+          'Function call with negative number of arguments: ' + arity
+        )
+      }
+
+      var fun = stack.pop()
+      if (fun instanceof Literal) {
+        fun = new BuiltinFun(fun.value)
+      }
+
+      if (arity === 0) {
+        stack.push(new FunCall(fun, []))
+      } else {
+        var argv = stack.splice(-arity, arity)
+        if (argv.length < arity) {
+          throw SyntaxError(
+            'Function call required ' +
+              arity +
+              ' arguments but there are only ' +
+              argv.length
+          )
         }
-    } else if (word.indexOf('ㅇ') != -1) {
-        var trailer = word.slice(1)
-        if (trailer) {  // ArgRef
-            var relF = parse_number(trailer)
-            var relA = stack.pop()
-            stack.push(new ArgRef(relA, relF))
-        } else {  // FunRef
-            var relF = stack.pop()
-            if (relF instanceof Literal) {
-                relF = relF.value;
-            } else {
-                throw ('Function reference admits integer literals only, ' +
-                       'but received:' + relF)
-            }
-            stack.push(new FunRef(relF));
-        }
+        stack.push(new FunCall(fun, argv))
+      }
     } else {
-        stack.push(new Literal(parse_number(word)));
+      // FunDef
+      var body = stack.pop()
+      stack.push(new FunDef(body))
     }
+  } else if (word.indexOf('ㅇ') !== -1) {
+    var trailer = word.slice(1)
+    var relF
+    if (trailer) {
+      // ArgRef
+      var relA = stack.pop()
+      relF = parseNumber(trailer)
+      stack.push(new ArgRef(relA, relF))
+    } else {
+      // FunRef
+      relF = stack.pop()
+      if (relF instanceof Literal) {
+        relF = relF.value
+      } else {
+        throw SyntaxError(
+          'Function reference admits integer literals only, ' +
+            'but received:' + relF
+        )
+      }
+      stack.push(new FunRef(relF))
+    }
+  } else {
+    stack.push(new Literal(parseNumber(word)))
+  }
 }
 
 /* Parses program into abstract syntax */
-function parse(sentence) {
-    sentence = sentence.split('').map(normalize_char).join('');
-    var words = sentence.split(' ')
-    var stack = []
-    var len = words.length;
-    for (var i=0; i<len; i++) {
-        if (words[i]) parse_word(words[i], stack);
+function parse (sentence) {
+  sentence = sentence
+    .split('')
+    .map(normalizeChar)
+    .join('')
+  var words = sentence.split(' ')
+  var stack = []
+  var len = words.length
+  for (var i = 0; i < len; i++) {
+    if (words[i]) parseWord(words[i], stack)
+  }
+  if (stack.length === 1) return stack[0]
+  throw SyntaxError(
+    'Parser expected 1 object but received ' + stack.length + ' objects.'
+  )
+}
+
+/** Interpreter **/
+
+/* Values */
+function Env (funs, args) {
+  this.funs = funs
+  this.args = args
+}
+
+function NumberV (value) {
+  this.value = value
+}
+function BooleanV (value) {
+  this.value = value
+}
+function ListV (value) {
+  this.value = value
+}
+function StringV (value) {
+  this.value = value
+}
+function ClosureV (body, env) {
+  this.body = body
+  this.env = env
+}
+function IOV (inst, argv) {
+  this.inst = inst
+  this.argv = argv
+}
+function NilV () {
+}
+function ExprV (expr, env, cache) {
+  this.expr = expr
+  this.env = env
+  this.cache = cache
+}
+var AnyV = [NumberV, BooleanV, ClosureV, ListV, StringV, IOV, NilV]
+
+/* Argument constraint checkers */
+function _forceArray (condition) {
+  return Array.isArray(condition) ? condition : [condition]
+}
+
+function isType (argv, desiredTypes) {
+  function matches (desiredType) {
+    return _forceArray(argv).every(function (arg) {
+      return arg instanceof desiredType
+    })
+  }
+  return _forceArray(desiredTypes).some(matches)
+}
+
+function checkType (argv, desiredTypes) {
+  if (isType(argv, desiredTypes)) return
+  throw TypeError(
+    'Arguments of type ' + desiredTypes + ' expected but received: ' + argv
+  )
+}
+
+function checkArity (argv, desiredArities) {
+  desiredArities = _forceArray(desiredArities)
+  if (desiredArities.indexOf(argv.length) !== -1) return
+  throw SyntaxError(
+    desiredArities + 'arguments expected but received ' + argv.length
+  )
+}
+
+function checkMinArity (argv, minimumArity) {
+  if (argv.length >= minimumArity) return
+  throw SyntaxError('At least ' + minimumArity + 'arguments expected but received ' + argv.length)
+}
+
+/* Builtin functions */
+function _extractValue (arg) {
+  return arg.value
+}
+
+function _allEqual (arr) {
+  if (arr.length === 0) return true
+  return arr.every(function (a) {
+    return a === arr[0]
+  })
+}
+
+function _listedEquals (arrs) {
+  if (arrs.length === 0) return true
+  if (!_allEqual(arrs.map(function (arr) { return arr.length }))) { return false }
+  var len = arrs[0].length
+  for (var i = 0; i < len; i++) { // compare among tiers
+    if (!_equals(arrs.map(function (arr) { return arr[i] }))) { return false }
+  }
+  return true
+}
+
+function _equals (argv) {
+  argv = argv.map(strict)
+  if (!isType(argv, AnyV)) return new BooleanV(false)
+  else if (isType(argv, NilV)) return new BooleanV(true)
+  else if (isType(argv, ClosureV)) {
+    return new BooleanV(_allEqual(argv))
+  } else if (isType(argv, ListV)) {
+    return new BooleanV(_listedEquals(argv.map(_extractValue)))
+  } else if (isType(argv, IOV)) {
+    if (!_allEqual(argv.map(function (arg) { return arg.inst }))) {
+      return new BooleanV(false)
     }
-    return stack;
+    return new BooleanV(_listedEquals(argv.map(function (arg) { return arg.argv })))
+  } else {
+    return new BooleanV(_allEqual(argv.map(_extractValue)))
+  }
 }
 
-
-// Interpreter
-
-function Env(funs, args) {
-    this.funs = funs
-    this.args = args
-}
-
-function NumberV(value) {
-    this.value = value;
-}
-function BooleanV(value) {
-    this.value = value;
-}
-function ClosureV(body, env) {
-    this.body = body;
-    this.env = env;
-}
-function IOV(argument, binder) {
-    this.argument = argument;
-    this.binder = binder;
-}
-function ExprV(expr, env, cache) {
-    this.expr = expr;
-    this.env = env;
-    this.cache = cache;
-}
-
-/* Forces strict evaluation of the value */
-function strict(value) {
-    if (value instanceof ExprV) {
-        if (value.cache) return value.cache;
-        else {
-            value.cache = strict(interpret(value.expr, value.env))
-            return value.cache;
-        }
-    } else return value;
-}
-
-function arity_check(argv, desired_arity) {
-    if (argv.length == desired_arity) return;
-    throw desired_arity + 'arguments expected but received ' + argv.length;
-}
-
-function type_check(argv, desired_type) {
-    if (argv.every(function (a) {return a instanceof desired_type})) return;
-    throw 'Arguments of type ' + desired_type + ' expected but received: ' + argv;
+function _exprApply (fun) {
+  return function (argv) {
+    var cannedEnv = fun.env
+    var newEnv = new Env(cannedEnv.funs, cannedEnv.args.concat([argv]))
+    return new ExprV(fun.body, newEnv, null)
+  }
 }
 
 /* Execute the built-in function with given arguments and environement
 Args:
     i: Built-in Function ID
     argv: Argument Values for the built-in function
-    env: Current environment
 Returns:
     Return value of the built-in function */
-function proc_builtin(i, argv) {
-    switch (i) {
-        // 산술 연산
-        case parse_number('ㄱ'):
-            argv = argv.map(strict)
-            type_check(argv, NumberV)
-            var product = argv.reduce(function (a, b) {
-                return new NumberV(a.value * b.value);
-            }, new NumberV(1))
-            return product;
-        case parse_number('ㄷ'):
-            argv = argv.map(strict)
-            type_check(argv, NumberV)
-            var sum = argv.reduce(function (a, b) {
-                return new NumberV(a.value + b.value);
-            }, new NumberV(0))
-            return sum;
-        case parse_number('ㅅ'):
-            arity_check(argv, 2)
-            argv = argv.map(strict)
-            type_check(argv, NumberV)
-            var power = Math.pow(argv[0].value, argv[1].value)
-            return new NumberV(power)
-        
-        //논리 연산
-        case parse_number('ㄴ'):
-            arity_check(argv, 2)
-            argv = argv.map(strict)
-            if (!(argv.every(function(a){return a instanceof NumberV})
-                || argv.every(function(a){return a instanceof BooleanV})))
-                throw 'Argument type mismatch' + argv
-            return new BooleanV(argv[0].value == argv[1].value)
-        case parse_number('ㅁ'):
-            arity_check(argv, 1)
-            argv = argv.map(strict)
-            type_check(argv, BooleanV)
-            return new BooleanV(!argv[0].value)
-        case parse_number('ㅈ'):
-            arity_check(argv, 2)
-            argv = argv.map(strict)
-            type_check(argv, NumberV)
-            return new BooleanV(argv[0].value < argv[1].value)
-        case parse_number('ㅈㅈ'):
-            arity_check(argv, 0)
-            return new BooleanV(true)
-        case parse_number('ㄱㅈ'):
-            arity_check(argv, 0)
-            return new BooleanV(false)
-        
-        // 입력
-        case parse_number('ㄹ'):
-            arity_check(argv, 0)
-            return new IOV(null, null)
-        case parse_number('ㄱㅅ'):
-            arity_check(argv, 1)
-            return new IOV(argv[0], null)
-        case parse_number('ㄱㄹ'):
-            arity_check(argv, 2)
-            return new IOV(argv[0], argv[1])
+function procBuiltin (i, argv) {
+  var inst = encodeNumber(i)
+  switch (inst) {
+    // 산술 연산
+    case 'ㄱ':
+      checkMinArity(argv, 1)
+      argv = argv.map(strict)
+      checkType(argv, [NumberV, BooleanV])
+      if (isType(argv, BooleanV)) {
+        return new BooleanV(argv.every(_extractValue))
+      } else {
+        return new NumberV(argv.map(_extractValue).reduce(
+          function (a, b) { return a * b }, 1))
+      }
+    case 'ㄷ':
+      checkMinArity(argv, 1)
+      argv = argv.map(strict)
+      checkType(argv, [NumberV, BooleanV, ListV, StringV])
+      if (isType(argv, BooleanV)) {
+        return new BooleanV(argv.some(_extractValue))
+      } else if (isType(argv, StringV)) {
+        return new StringV(argv.map(_extractValue).join(''))
+      } else if (isType(argv, ListV)) {
+        return new ListV(argv.map(_extractValue).reduce(
+          function (a, b) { return a.concat(b) }, []))
+      } else {
+        return new NumberV(argv.map(_extractValue).reduce(
+          function (a, b) { return a + b }, 0))
+      }
+    case 'ㅅ':
+      checkArity(argv, 2)
+      argv = argv.map(strict)
+      checkType(argv, NumberV)
+      var power = Math.pow(argv[0].value, argv[1].value)
+      return new NumberV(power)
+
+    // 논리 연산
+    case 'ㄴ':
+      return _equals(argv)
+    case 'ㅁ':
+      checkArity(argv, 1)
+      argv = argv.map(strict)
+      checkType(argv, BooleanV)
+      return new BooleanV(!argv[0].value)
+    case 'ㅈ':
+      checkArity(argv, 2)
+      argv = argv.map(strict)
+      checkType(argv, NumberV)
+      return new BooleanV(argv[0].value < argv[1].value)
+    case 'ㅈㅈ':
+      checkArity(argv, 0)
+      return new BooleanV(true)
+    case 'ㄱㅈ':
+      checkArity(argv, 0)
+      return new BooleanV(false)
+
+    // 입력
+    case 'ㄹ':
+      checkArity(argv, 0)
+      return new IOV(inst, argv)
+    case 'ㅈㄹ':
+      checkArity(argv, 1)
+      argv = argv.map(strict)
+      checkType(argv, StringV)
+      return new IOV(inst, argv)
+    case 'ㄱㅅ':
+      checkArity(argv, 1)
+      return new IOV(inst, argv)
+    case 'ㄱㄹ':
+      checkMinArity(argv, 1)
+      return new IOV(inst, argv)
+
+    // 문자열
+    case 'ㅅㅅ':
+      checkArity(argv, [1, 2])
+      argv = argv.map(strict)
+      var string = argv[0]
+      checkType(string, StringV)
+      string = string.value
+      if (argv.length === 1) {
+        return new NumberV(+string)
+      }
+      var base = argv[1]
+      checkType(base, NumberV)
+      base = base.value
+      if (base === 10) {
+        return new NumberV(+string)
+      } else if (string.indexOf('.') === -1) {
+        return new NumberV(parseInt(string, base))
+      } else {
+        var parts = string.trim().split('.')
+        var vocab = '0123456789abcdefghijklmnopqrstuvwxyz'.slice(0, base)
+        var significant = parts.join('')
+        if (significant.search('^[+-]?[' + vocab + ']+$') === -1) {
+          throw EvalError('Cannot convert "' + string + '" to Number.')
+        }
+        significant = parseInt(significant, base)
+        return new NumberV(significant / Math.pow(base, parts[1].length))
+      }
+
+    case 'ㅂㄹ':
+      checkArity(argv, [1, 2])
+      argv = argv.map(strict)
+      checkType(argv, StringV)
+      var src = argv[0].value
+      var delimiter = argv.length > 1 ? argv[1].value : ''
+      var pieces = src.split(delimiter)
+      return new ListV(pieces.map(function (piece) { return new StringV(piece) }))
+    case 'ㄱㅁ':
+      checkArity(argv, [1, 2])
+      argv = argv.map(strict)
+      var seq = argv[0]
+      var delimiter = (argv.length > 1) ? argv[1] : new StringV('')
+      checkType(seq, ListV)
+      checkType(delimiter, StringV)
+      var pieces = seq.value.map(strict)
+      checkType(pieces, StringV)
+      return new StringV(pieces.map(_extractValue).join(delimiter.value))
+
+    // 목록
+    case 'ㅈㄷ':
+      checkArity(argv, 1)
+      argv = argv.map(strict)
+      checkType(argv, [ListV, StringV])
+      return new NumberV(argv[0].value.length)
+    case 'ㅂㅈ':
+      checkArity(argv, [2, 3, 4])
+      argv = argv.map(strict)
+      checkType(argv[0], [ListV, StringV])
+      checkType(argv.slice(1), NumberV)
+      var seq = argv[0].value
+      var start = Math.round(argv[1].value)
+      var end = argv.length > 2 ? Math.round(argv[2].value) : seq.length
+      seq = seq.slice(start, end)
+      var step = argv.length > 3 ? Math.round(argv[3].value) : 1
+      var cond = function (element, idx) { return idx % step === 0 }
+      if (argv[0] instanceof ListV) {
+        return new ListV(seq.filter(cond))
+      } else if (argv[0] instanceof StringV) {
+        return new StringV(seq.split('').filter(cond).join(''))
+      }
+      break
+    case 'ㅁㄷ':
+      checkArity(argv, 2)
+      argv = argv.map(strict)
+      checkType(argv[0], ListV)
+      checkType(argv[1], ClosureV)
+      return new ListV(argv[0].value.map(function (a) { return [a] }).map(_exprApply(argv[1])))
+    case 'ㅅㅂ':
+      checkArity(argv, 2)
+      argv = argv.map(strict)
+      checkType(argv[0], ListV)
+      checkType(argv[1], ClosureV)
+
+      var seq = argv[0].value
+      var fitCheck = seq.map(function (a) { return [a] }).map(_exprApply(argv[1])).map(strict)
+      checkType(fitCheck, BooleanV)
+      fitCheck = fitCheck.map(_extractValue)
+      return new ListV(seq.filter(function (_, idx) {
+        return fitCheck[idx]
+      }))
+
+    // 기타
+    case 'ㅁㄹ': // 목록
+      return new ListV(argv)
+    case 'ㅁㅈ': // 문자열
+      checkArity(argv, [0, 1])
+      if (argv.length === 0) return new StringV('')
+      var arg = strict(argv[0])
+      checkType(arg, [NumberV, StringV])
+      if (arg instanceof StringV) return arg
+      else if (arg.value === (arg.value | 0)) {
+        return new StringV(String(arg.value | 0))
+      } else {
+        return new StringV(String(arg.value))
+      }
+    case 'ㅂㄱ': // 빈값
+      checkArity(argv, 0)
+      return new NilV()
+  }
+}
+
+/* Forces strict evaluation of the value */
+function strict (value) {
+  if (value instanceof ExprV) {
+    if (value.cache) return value.cache
+    else {
+      value.cache = strict(interpret(value.expr, value.env))
+      return value.cache
     }
+  } else return value
+}
+
+function _accessWithRelativeIndex (arr, rel) {
+  if (rel >= 0) return arr[rel]
+  else return arr[arr.length + rel]
 }
 
 /* Evaluates the expression in given environment and
  * returns a value */
-function interpret(expr, env) {
-    if (expr instanceof Literal) {
-        return new NumberV(expr.value)
-    } else if (expr instanceof FunRef) {
-        return env.funs[env.funs.length-expr.rel-1]
-    } else if (expr instanceof ArgRef) {
-        if (env.funs.length != env.args.length)
-            throw ('Assertion Error: Environment has ' +
-                   env.funs.length + ' funs and ' + env.args.length + ' args.')
-        var args = env.args[env.args.length-expr.relF-1]
-        var relA = strict(interpret(expr.relA, env))
-        type_check([relA], NumberV)
-        relA = Math.round(relA.value)
-        if (relA < 0) {
-            throw 'Tried to reference argument with negative index: ' + relA
-        } else if (relA >= args.length) {
-            throw ('Out of Range: ' + args.length +' arguments received ' +
-            'but ' + relA + '-th argument requested')
-        } else return args[relA]
-    } else if (expr instanceof FunDef) {
-        var new_funs = env.funs.slice()
-        var new_env = new Env(new_funs, env.args)
-        var closure = new ClosureV(expr.body, new_env)
-        new_env.funs.push(closure)
-        return closure
-    } else if (expr instanceof FunCall) {
-        var argv = expr.argv.map(function (arg) {
-            return new ExprV(arg, env, null)
-        })
-        if (expr.fun instanceof BuiltinFun) {
-            return proc_builtin(expr.fun.id, argv)
-        }
-
-        var fun_value = strict(interpret(expr.fun, env))
-        if (fun_value instanceof NumberV) {
-            throw 'Number is not callable.'
-        } else if (fun_value instanceof BooleanV) {
-            arity_check(argv, 2)
-            return argv[fun_value.value? 0: 1]
-        } else if (fun_value instanceof ClosureV) {
-            var canned_env = fun_value.env
-            var new_argv = canned_env.args.concat([argv])
-            var new_env = new Env(canned_env.funs, new_argv)
-            return interpret(fun_value.body, new_env)
-        }
+function interpret (expr, env) {
+  if (expr instanceof Literal) {
+    return new NumberV(expr.value)
+  } else if (expr instanceof FunRef) {
+    return _accessWithRelativeIndex(env.funs, -expr.rel - 1)
+  } else if (expr instanceof ArgRef) {
+    if (env.funs.length !== env.args.length) {
+      throw EvalError(
+        'Assertion Error: Environment has ' +
+          env.funs.length +
+          ' funs and ' +
+          env.args.length +
+          ' args.'
+      )
     }
-    throw 'Unexpected expression: ' + expr
-}
+    var args = _accessWithRelativeIndex(env.args, -expr.relF - 1)
+    var relA = strict(interpret(expr.relA, env))
+    checkType(relA, NumberV)
+    relA = Math.round(relA.value)
+    if (relA < 0 || relA >= args.length) {
+      throw EvalError(
+        'Out of Range: ' +
+          args.length +
+          ' arguments received ' +
+          'but ' +
+          relA +
+          '-th argument requested'
+      )
+    } else return args[relA]
+  } else if (expr instanceof FunDef) {
+    var newFuns = env.funs.slice()
+    var newEnv = new Env(newFuns, env.args)
+    var closure = new ClosureV(expr.body, newEnv)
+    newEnv.funs.push(closure)
+    return closure
+  } else if (expr instanceof FunCall) {
+    var argv = expr.argv.map(function (arg) {
+      return new ExprV(arg, env, null)
+    })
+    if (expr.fun instanceof BuiltinFun) {
+      return procBuiltin(expr.fun.id, argv)
+    }
 
-/* Receives an IOV and produces the result */
-function do_IO(io_value) {
-    if (!(io_value instanceof IOV))
-        return io_value;
-        // throw 'IO expected but received ' + io_value
-    if (io_value.argument == null) {
-        return new NumberV(Number(prompt()))
-    } else if (io_value.binder == null) {
-        return io_value.argument
+    var funValue = strict(interpret(expr.fun, env))
+    checkType(funValue, [BooleanV, ListV, StringV, ClosureV])
+    if (funValue instanceof BooleanV) {
+      checkArity(argv, 2)
+      return argv[funValue.value ? 0 : 1]
+    } else if (funValue instanceof ClosureV) {
+      return _exprApply(funValue)(argv)
     } else {
-        var arg = strict(io_value.argument)
-        var binder = strict(io_value.binder)
-        if (!(arg instanceof IOV)) {
-            throw 'Bind expects an IO as its 0th argument but received ' + arg
-        }
-        if (!(binder instanceof ClosureV)) {
-            throw 'Bind expects a closure as its 1st argument but received ' + binder
-        }
-        var argv = [do_IO(arg)]
-        var env = binder.env
-        var new_env = new Env(env.funs, env.args.concat([argv]))
-        return do_IO(interpret(binder.body, new_env))
+      checkArity(argv, 1)
+      argv = argv.map(strict)
+      checkType(argv, NumberV)
+      var seq = funValue.value
+      var idx = Math.round(argv[0].value)
+      var item = _accessWithRelativeIndex(seq, idx)
+      if (funValue instanceof ListV) return item
+      else return new StringV(item)
     }
+  }
+  throw EvalError('Unexpected expression: ' + expr)
 }
 
+/* Receives an IOV and produces non-ExprV value. */
+function _doSingleIO (ioValue) {
+  checkType(ioValue, IOV)
+  var inst = ioValue.inst
+  var argv = ioValue.argv
+  switch (inst) {
+    case 'ㄹ':
+      return new StringV(prompt())
+    case 'ㅈㄹ':
+      alert(argv[0].value)
+      return new NilV()
+    case 'ㄱㅅ':
+      return strict(argv[0])
+    case 'ㄱㄹ':
+      argv = argv.map(strict)
+      var binder = argv.pop()
+      checkType(argv, IOV)
+      checkType(binder, ClosureV)
+      argv = argv.map(doIO)
+      return strict(_exprApply(binder)(argv))
+  }
+}
+
+/* Receives an IOV and produces non-IOV non-ExprV value. */
+function doIO (ioValue) {
+  checkType(ioValue, IOV)
+  while (ioValue instanceof IOV) {
+    ioValue = _doSingleIO(ioValue)
+  }
+  return ioValue
+}
 
 /* Converts the value into a printable JS object */
-function to_printable(value) {
-    value = strict(value)
-    if (value instanceof NumberV) {
-        return value.value
-    } else if (value instanceof BooleanV) {
-        return value.value
-    } else if (value instanceof ClosureV) {
-        return '&lt;Closure created at depth ' + (value.env.args.length-1) + '&gt;'
-    } else if (value instanceof IOV) {
-        return to_printable(do_IO(value))
-    } else {
-        throw 'Unexpected value: ' + value
-    }
+function toPrintable (value) {
+  value = strict(value)
+  if (value instanceof IOV) value = doIO(value)
+
+  if (isType(value, [NumberV, BooleanV, StringV])) {
+    return value.value
+  } else if (value instanceof ListV) {
+    return value.value.map(toPrintable)
+  } else if (value instanceof ClosureV) {
+    return '&lt;Closure created at depth ' + value.env.args.length + '&gt;'
+  } else if (value instanceof NilV) {
+    return null
+  }
+  throw EvalError('Unexpected value: ' + value)
 }
 
 /* Main procedure. Parses, evaluates, and converts to str.
@@ -337,11 +647,45 @@ function to_printable(value) {
         arg: raw string that encodes a program
     Returns:
         A string representing the resulting value */
-function main(arg) {
-    var stack = parse(arg)
-    var env = new Env([null], [[]])
-    var values = stack.map(function (expr) {
-        return interpret(expr, env)
-    })
-    return values.map(to_printable).join(' ')
+function main (arg) {
+  var expr = parse(arg)
+  var env = new Env([], [])
+  var value = interpret(expr, env)
+  return toPrintable(value)
+}
+
+/* Used to revert AST to codes */
+function encodeNumber (number) {
+  var isNegative = number < 0
+  if (isNegative) number = -number
+  // nonnegative integer
+  var oct = number
+    .toString(8)
+    .split('')
+    .reverse()
+  var tbl = 'ㄱㄴㄷㄹㅁㅂㅅㅈ'
+  var encoded = oct.map(s => tbl[s]).join('')
+  if ((encoded.length % 2 === 0) !== isNegative) {
+    encoded += 'ㄱ'
+  }
+  return encoded
+}
+function astToCode (parsed) {
+  if (parsed instanceof Literal) {
+    return encodeNumber(parsed.value)
+  } else if (parsed instanceof FunRef) {
+    return encodeNumber(parsed.rel) + ' ㅇ'
+  } else if (parsed instanceof ArgRef) {
+    return encodeNumber(parsed.relA) + ' ㅇ' + encodeNumber(parsed.relF)
+  } else if (parsed instanceof FunDef) {
+    return astToCode(parsed.body) + ' ㅎ'
+  } else if (parsed instanceof BuiltinFun) {
+    return encodeNumber(parsed.id)
+  } else if (parsed instanceof FunCall) {
+    var argv = parsed.argv.map(astToCode).join(' ')
+    var fun = astToCode(parsed.fun)
+    if (argv) argv += ' '
+    return argv + fun + ' ㅎ' + encodeNumber(parsed.argv.length)
+  }
+  throw Error('[astToCode] Invalid argument', parsed)
 }
