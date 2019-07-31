@@ -36,7 +36,7 @@ def proc_funcall(call_node):
 if __name__ == '__main__':
     generated = []
 
-    tests = ['test_py/test_*.py', 'test_py/builtins/test_*.py']
+    tests = ['test/test_*.py', 'test/builtins/test_*.py']
     tests = [files for fpath in tests for files in glob(fpath)]
     for path in tests:
         if 'test_base.py' in path or 'test_check.py' in path:
@@ -53,7 +53,7 @@ if __name__ == '__main__':
 const assert = require('assert')
 
 function _test (program, value) {
-  assert.strictEqual(main(program), value)
+  assert.strictEqual(main(program)[0], value)
 }
 
 ''')

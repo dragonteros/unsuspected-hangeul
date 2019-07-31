@@ -11,7 +11,7 @@ from pbhhg_py.builtins.logic import _all_equal
 class TestBase(unittest.TestCase):
     def _assert_execute(self, program, py_value, stdin='', stdout=''):
         sys.stdin, sys.stdout = StringIO(stdin), StringIO()
-        self.assertEqual(main(program), py_value)
+        self.assertEqual(main(program)[0], py_value)
         self.assertEqual(sys.stdout.getvalue().strip(), stdout.strip())
         sys.stdin, sys.stdout = sys.__stdin__, sys.__stdout__
 

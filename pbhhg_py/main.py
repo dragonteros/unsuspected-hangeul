@@ -9,7 +9,6 @@ v0.5 (2019.07.28)
   * 기본 제공 함수 `ㅈㄹ`이 추가되고, 기본 제공 함수 `ㄱㄹ`의 행동이 변경되었습니다.
   * 기본 제공 함수 `ㄹ`의 행동이 변경되었습니다.
     - 주의: v0.4의 행동과 호환되지 않습니다.
-  * 프로그램이 하나의 객체만을 가지도록 제한되었습니다.
 '''
 import sys
 
@@ -75,17 +74,25 @@ def main(arg):
     Returns:
         A string representing the resulting value
     '''
-    expr = parse(arg)
+    exprs = parse(arg)
     env = Env([], [])
-    value = interpret(expr, env)
-    return to_printable(value)
+    values = [interpret(expr, env) for expr in exprs]
+    return [to_printable(value) for value in values]
+
+
+def print_main_with_warning(arg):
+    values = main(arg)
+    if len(values) >= 2:
+        print('[!] Warning: Interpreted {} objects in 1 line.'.format(
+            len(values)))
+    print(' '.join(str(value) for value in values), flush=True)
 
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:  # stdin (user or cat file)
         print('> ', end='', flush=True)
         for line in sys.stdin:
-            print(main(line), flush=True)
+            print_main_with_warning(line)
             print('> ', end='', flush=True)
     elif len(sys.argv) == 2:  # inline
-        print(main(sys.argv[1]))
+        print_main_with_warning(sys.argv[1])

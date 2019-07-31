@@ -124,13 +124,7 @@ def parse(sentence):
     for word in words:
         if word:
             stack = parse_word(word, stack)
-
-    if len(stack) == 1:
-        [value] = stack
-        return value
-    else:
-        raise ValueError('Parser expected 1 object '
-                         'but received {} objects'.format(len(stack)))
+    return stack
 
 
 def print_parse_tree(arg, indent=0):

@@ -1,4 +1,4 @@
-from test_py.test_base import TestBase
+from test.test_base import TestBase
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.check import *
 from pbhhg_py.check import _force_list, _matches

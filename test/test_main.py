@@ -1,6 +1,6 @@
 import unittest
 
-from test_py.test_base import TestBase
+from test.test_base import TestBase
 
 
 class TestMain(TestBase):

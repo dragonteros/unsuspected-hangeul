@@ -198,10 +198,7 @@ function parse (sentence) {
   for (var i = 0; i < len; i++) {
     if (words[i]) parseWord(words[i], stack)
   }
-  if (stack.length === 1) return stack[0]
-  throw SyntaxError(
-    'Parser expected 1 object but received ' + stack.length + ' objects.'
-  )
+  return stack
 }
 
 /** Interpreter **/
@@ -648,10 +645,12 @@ function toPrintable (value) {
     Returns:
         A string representing the resulting value */
 function main (arg) {
-  var expr = parse(arg)
+  var exprs = parse(arg)
   var env = new Env([], [])
-  var value = interpret(expr, env)
-  return toPrintable(value)
+  var values = exprs.map(function (expr) {
+    return interpret(expr, env)
+  })
+  return values.map(toPrintable)
 }
 
 /* Used to revert AST to codes */

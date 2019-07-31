@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <html>
@@ -61,6 +61,11 @@
       background-color: #333;
       color: #ccc;
     }
+
+    .warning {
+      color: #f70;
+      font-weight: bold;
+    }
   </style>
 </head>
 
@@ -82,17 +87,25 @@
     var code = document.getElementById('code')
     var output = document.getElementById('output')
     function clean() {
-      code.value = '';
-      output.innerHTML = '결과:';
+      code.value = ''
+      output.innerHTML = '결과 (객체 0개):'
     }
     function run() {
-      var result;
+      var result
+      var counter
       try {
-        result = '결과: ' + main(code.value);
+        result = main(code.value)
+        counter = result.length
+        if (counter >= 2) {
+            counter = "<span class='warning'>(객체 " + counter + "개)</span>"
+        } else {
+            counter = "(객체 " + counter + "개)"
+        }
+        result = '결과 ' + counter + ': ' + result.join(' ')
       } catch (error) {
-        result = '문제가 생겼습니다. ' + error;
+        result = '문제가 생겼습니다. ' + error
       }
-      output.innerHTML = result;
+      output.innerHTML = result
     }
     code.addEventListener('keydown', e => {
       if (e.ctrlKey && e.key == 'Enter') run()
