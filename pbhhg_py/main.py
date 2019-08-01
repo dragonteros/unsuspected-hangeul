@@ -67,7 +67,19 @@ def to_printable(value):
         raise ValueError('Unexpected value: {}'.format(value))
 
 
-def main(arg):
+def to_str(value):
+    '''Converts the value into str.'''
+    value = strict(value)
+    if isinstance(value, IO):
+        value = do_IO(value)
+    if isinstance(value, String):
+        return "'{}'".format(value.value)
+    elif isinstance(value, Nil):
+        return 'Nil'
+    return str(to_printable(value))
+
+
+def main(arg, formatter=to_printable):
     '''Main procedure. Parses, evaluates, and converts to str.
     Args:
         arg: raw string that encodes a program
@@ -77,15 +89,15 @@ def main(arg):
     exprs = parse(arg)
     env = Env([], [])
     values = [interpret(expr, env) for expr in exprs]
-    return [to_printable(value) for value in values]
+    return [formatter(value) for value in values]
 
 
 def print_main_with_warning(arg):
-    values = main(arg)
+    values = main(arg, formatter=to_str)
     if len(values) >= 2:
         print('[!] Warning: Interpreted {} objects in 1 line.'.format(
             len(values)))
-    print(' '.join(str(value) for value in values), flush=True)
+    print(' '.join(values), flush=True)
 
 
 if __name__ == '__main__':
