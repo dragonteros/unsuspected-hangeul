@@ -622,15 +622,15 @@ function doIO (ioValue) {
   return ioValue
 }
 
-/* Converts the value into a printable JS object */
-function toPrintable (value) {
+/* Converts the value into a JS object */
+function toJS (value) {
   value = strict(value)
   if (value instanceof IOV) value = doIO(value)
 
   if (isType(value, [NumberV, BooleanV, StringV])) {
     return value.value
   } else if (value instanceof ListV) {
-    return value.value.map(toPrintable)
+    return value.value.map(toJS)
   } else if (value instanceof ClosureV) {
     return '&lt;Closure created at depth ' + value.env.args.length + '&gt;'
   } else if (value instanceof NilV) {
@@ -644,13 +644,13 @@ function toPrintable (value) {
         arg: raw string that encodes a program
     Returns:
         A string representing the resulting value */
-function main (arg) {
+function main (arg, formatter = toJS) {
   var exprs = parse(arg)
   var env = new Env([], [])
   var values = exprs.map(function (expr) {
     return interpret(expr, env)
   })
-  return values.map(toPrintable)
+  return values.map(formatter)
 }
 
 /* Used to revert AST to codes */

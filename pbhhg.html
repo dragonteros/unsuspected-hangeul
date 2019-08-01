@@ -94,7 +94,7 @@
       var result
       var counter
       try {
-        result = main(code.value)
+        result = main(code.value, formatter)
         counter = result.length
         if (counter >= 2) {
             counter = "<span class='warning'>(객체 " + counter + "개)</span>"
@@ -110,6 +110,27 @@
     code.addEventListener('keydown', e => {
       if (e.ctrlKey && e.key == 'Enter') run()
     })
+
+    /* Converts the value into a string */
+    function formatter(value) {
+        value = strict(value)
+        if (value instanceof IOV) value = doIO(value)
+
+        if (value instanceof NumberV) {
+            return value.value
+        } else if (value instanceof BooleanV) {
+            return value.value? 'True': 'False'
+        } else if (value instanceof StringV) {
+            return "'" + value.value + "'"
+        } else if (value instanceof ListV) {
+            return '[' + value.value.map(formatter).join(', ') + ']'
+        } else if (value instanceof ClosureV) {
+            return '&lt;Closure created at depth ' + value.env.args.length + '&gt;'
+        } else if (value instanceof NilV) {
+            return 'Nil'
+        }
+        throw EvalError('Unexpected value: ' + value)
+    }
   </script>
 </body>
 
