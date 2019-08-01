@@ -37,7 +37,9 @@ def _do_single_IO(io_value):
         body, canned_env = binder
         canned_funs, canned_args = canned_env
         new_env = Env(canned_funs, canned_args + [argv])
-        return strict(interpret(body, new_env))
+        result = strict(interpret(body, new_env))
+        check_type(result, IO)
+        return result
 
 
 def do_IO(io_value):
@@ -82,9 +84,10 @@ def to_str(value):
 def main(arg, formatter=to_printable):
     '''Main procedure. Parses, evaluates, and converts to str.
     Args:
-        arg: raw string that encodes a program
+        arg: Raw string that encodes a program
+        formatter: A function that maps a pbhhg value to str.
     Returns:
-        A string representing the resulting value
+        A list of strings representing the resulting values
     '''
     exprs = parse(arg)
     env = Env([], [])

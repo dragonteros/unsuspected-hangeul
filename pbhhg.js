@@ -609,7 +609,9 @@ function _doSingleIO (ioValue) {
       checkType(argv, IOV)
       checkType(binder, ClosureV)
       argv = argv.map(doIO)
-      return strict(_exprApply(binder)(argv))
+      var result = strict(_exprApply(binder)(argv))
+      checkType(result, IOV)
+      return result
   }
 }
 

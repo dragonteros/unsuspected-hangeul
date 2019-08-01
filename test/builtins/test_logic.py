@@ -29,7 +29,7 @@ class TestLogic(TestBase):
     def test_equals_other(self):
         _test = self._assert_execute
         _test('ㅂㄱㅎㄱ ㅂㄱㅎㄱ ㄶㄷ', True)
-        _test('(ㄱ ㅁㅈㅎㄴ ㅈㅀㄴ) (ㄱㅇㄱ ㅂㄱㅎㄱ ㄶㄷㅎ) ㄱㅀㄷ', True, '', '0')
+        _test('(ㄱ ㅁㅈㅎㄴ ㅈㅀㄴ) (ㄱㅇㄱ ㅂㄱㅎㄱ ㄶㄷ ㄳㅎㄶ) ㄱㅀㄷ', True, '', '0')
         _test('ㄶ (ㄱㅇㄱ ㄱㅇㄱ ㄶㄷㅎ)ㅎㄴ', True)
         _test('ㄶ (ㄱㅇㄱ ㄶ ㄶㄷㅎ)ㅎㄴ', False)
         _test('ㄶ ㄶ (ㄱㅇㄱ ㄴㅇㄱ ㄶㄷㅎ)ㅎㄷ', False)

@@ -22,5 +22,5 @@ class TestIO(TestBase):
 
     def test_bind(self):
         _test = self._assert_execute
-        _test('ㄴ ㄳㅎㄴ (ㄱㅇㄱ ㄴ ㄷㅎㄷㅎ)ㄱㅀㄷ', 2)
-        _test('ㄴ ㄳㅎㄴ ㄷ ㄳㅎㄴ (ㄱㅇㄱ ㄴㅇㄱ ㄷㅎㄷㅎ)ㄱㅀㄹ', 3)
+        _test('ㄴ ㄳㅎㄴ (ㄱㅇㄱ ㄴ ㄷㅎㄷ ㄳㅎㄶ)ㄱㅀㄷ', 2)
+        _test('ㄴ ㄳㅎㄴ ㄷ ㄳㅎㄴ (ㄱㅇㄱ ㄴㅇㄱ ㄷㅎㄷ ㄳㅎㄶ)ㄱㅀㄹ', 3)
