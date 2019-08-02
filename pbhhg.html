@@ -114,9 +114,9 @@
     /* Converts the value into a string */
     function formatter(value) {
         value = strict(value)
-        if (value instanceof IOV) value = doIO(value)
-
-        if (value instanceof NumberV) {
+        if (value instanceof IOV) { 
+            return 'IO(' + formatter(doIO(value)) + ')'
+        } else if (value instanceof NumberV) {
             return value.value
         } else if (value instanceof BooleanV) {
             return value.value? 'True': 'False'
