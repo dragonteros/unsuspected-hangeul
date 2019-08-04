@@ -406,17 +406,21 @@ function procBuiltin (i, argv) {
       checkType(string, StringV)
       string = string.value
       if (argv.length === 1) {
+        if (isNaN(+string)) {
+          throw EvalError('Cannot convert "' + string + '" to Number.')
+        }
         return new NumberV(+string)
       }
       var base = argv[1]
       checkType(base, NumberV)
       base = base.value
       if (base === 10) {
+        if (isNaN(+string)) {
+          throw EvalError('Cannot convert "' + string + '" to Number.')
+        }
         return new NumberV(+string)
-      } else if (string.indexOf('.') === -1) {
-        return new NumberV(parseInt(string, base))
       } else {
-        var parts = string.trim().split('.')
+        var parts = string.trim().split('.').concat([''])
         var vocab = '0123456789abcdefghijklmnopqrstuvwxyz'.slice(0, base)
         var significant = parts.join('')
         if (significant.search('^[+-]?[' + vocab + ']+$') === -1) {
