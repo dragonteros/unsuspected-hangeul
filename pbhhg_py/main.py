@@ -14,7 +14,7 @@ import sys
 
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import parse
-from pbhhg_py.interpret import strict, interpret
+from pbhhg_py.interpret import strict, proc_functional
 from pbhhg_py.check import check_type
 
 
@@ -30,14 +30,11 @@ def _do_single_IO(io_value):
     if inst == 'ㄱㅅ':  # return
         return strict(argv[0])
     if inst == 'ㄱㄹ':  # bind
-        *argv, binder = [strict(arg) for arg in argv]
-        check_type(argv, IO)
-        check_type(binder, Closure)
-        argv = [do_IO(arg) for arg in argv]
-        body, canned_env = binder
-        canned_funs, canned_args = canned_env
-        new_env = Env(canned_funs, canned_args + [argv])
-        result = strict(interpret(body, new_env))
+        *arguments, binder = argv
+        arguments = [strict(arg) for arg in arguments]
+        check_type(arguments, IO)
+        arguments = [do_IO(arg) for arg in arguments]
+        result = strict(proc_functional(binder)(arguments))
         check_type(result, IO)
         return result
 
@@ -50,38 +47,40 @@ def do_IO(io_value):
     return io_value
 
 
-def to_printable(value):
-    '''Converts the value into a printable Python object'''
+def formatter(value, format_io=True):
+    '''Converts the value into Python number, bool and str for writing tests'''
     value = strict(value)
     if isinstance(value, IO):
-        value = do_IO(value)
+        _format = 'IO({})' if format_io else '{}'
+        return _format.format(formatter(do_IO(value)))
 
-    if isinstance(value, (Number, Boolean, String)):
-        return value.value
-    elif isinstance(value, List):
-        return [to_printable(item) for item in value.value]
-    elif isinstance(value, Closure):
-        return '<Closure created at depth {}>'.format(
-            len(value.env.args))
-    elif isinstance(value, Nil):
-        return None
-    else:
-        raise ValueError('Unexpected value: {}'.format(value))
-
-
-def to_str(value):
-    '''Converts the value into str.'''
-    value = strict(value)
-    if isinstance(value, IO):
-        value = do_IO(value)
+    if isinstance(value, Number):
+        arg = value.value
+        return str(int(arg) if int(arg) == arg else arg)
+    if isinstance(value, Boolean):
+        return str(value.value)
     if isinstance(value, String):
         return "'{}'".format(value.value)
-    elif isinstance(value, Nil):
+    if isinstance(value, Bytes):
+        arg = ''.join(r'\x{:02X}'.format(b) for b in value.value)
+        return "b'{}'".format(arg)
+    if isinstance(value, List):
+        arg = [formatter(item, format_io) for item in value.value]
+        return '[{}]'.format(', '.join(arg))
+    if isinstance(value, Dict):
+        d = value.value
+        d = [(formatter(k, format_io), formatter(d[k], format_io)) for k in d]
+        d = sorted(d, key=lambda pair: pair[0])
+        d = ', '.join("{}: {}".format(k, v) for k, v in d)
+        return '{' + d + '}'
+    if isinstance(value, Function):
+        return str(value)
+    if isinstance(value, Nil):
         return 'Nil'
-    return str(to_printable(value))
+    raise ValueError('Unexpected value: {}'.format(value))
 
 
-def main(arg, formatter=to_printable):
+def main(arg, format_io=True):
     '''Main procedure. Parses, evaluates, and converts to str.
     Args:
         arg: Raw string that encodes a program
@@ -91,12 +90,12 @@ def main(arg, formatter=to_printable):
     '''
     exprs = parse(arg)
     env = Env([], [])
-    values = [interpret(expr, env) for expr in exprs]
-    return [formatter(value) for value in values]
+    values = [Expr(expr, env, []) for expr in exprs]
+    return [formatter(value, format_io) for value in values]
 
 
 def print_main_with_warning(arg):
-    values = main(arg, formatter=to_str)
+    values = main(arg)
     if len(values) >= 2:
         print('[!] Warning: Interpreted {} objects in 1 line.'.format(
             len(values)))
@@ -105,6 +104,7 @@ def print_main_with_warning(arg):
 
 if __name__ == '__main__':
     if len(sys.argv) == 1:  # stdin (user or cat file)
+        print('[Unsuspected Hangeul Interpreter shell. Quit with Ctrl-D.]')
         print('> ', end='', flush=True)
         for line in sys.stdin:
             print_main_with_warning(line)

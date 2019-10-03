@@ -3,7 +3,7 @@ from pbhhg_py import builtins
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import encode_number
 from pbhhg_py.check import *
-from pbhhg_py.builtins.sequence import _expr_apply
+from pbhhg_py.check import recursive_map
 
 
 def strict(value):
@@ -54,68 +54,85 @@ def interpret(expr, env):
 
     elif isinstance(expr, FunCall):
         fun, argv = expr
-        arguments = [Expr(arg, env, []) for arg in argv]  # lazy eval
-        if isinstance(fun, BuiltinFun):
-            return proc_builtin(fun.id, arguments)
-
-        fun_value = strict(interpret(fun, env))
-        check_type(fun_value, (Boolean, List, String, Closure))
-
-        if isinstance(fun_value, Boolean):
-            check_arity(arguments, 2)
-            return arguments[0 if fun_value.value else 1]
-
-        elif isinstance(fun_value, Closure):
-            return _expr_apply(fun_value, arguments)
-
-        else:
-            check_arity(arguments, 1)
-            arg = strict(arguments[0])
-            check_type(arg, Number)
-            seq, idx = fun_value.value, arg.value
-            item = seq[int(round(idx))]
-            if isinstance(fun_value, List):
-                return item
-            else:
-                return String(item)
+        fun = Expr(fun, env, [])
+        argv = [Expr(arg, env, []) for arg in argv]
+        recipe = proc_functional(fun, allow=Callable)
+        return recipe(argv)
 
     raise ValueError('Unexpected expression: {}'.format(expr))
 
 
-def proc_builtin(i, argv):
-    '''Execute the built-in function with given arguments and environement
+def proc_functional(fun, allow=(), stricted=None):
+    """
     Args:
-        i: Built-in Function ID
-        argv: Argument Values for the built-in function
+        fun: A maybe-Expr value that may correspond to a function.
+        allow: A list of types that are allowed for execution.
+        stricted: Cached strict value of fun
     Returns:
-        Return value of the built-in function
+        A recipe function that receives argument list and returns the value.
+    """
+    if isinstance(fun, Expr) and isinstance(fun.expr, Literal):
+        return find_builtin(fun.expr.value)
+
+    fun = stricted or strict(fun)
+    allowed_by_default = (Function, )
+    check_type(fun, tuple(allow) + allowed_by_default)
+
+    if isinstance(fun, Function):
+        return fun
+
+    elif isinstance(fun, Boolean):
+        def _proc_boolean(arguments):
+            check_arity(arguments, 2)
+            return arguments[0 if fun.value else 1]
+        return _proc_boolean
+
+    elif isinstance(fun, Dict):
+        def _proc_dict(arguments):
+            check_arity(arguments, 1)
+            arg = recursive_map(arguments[0], strict)
+            return fun.value[arg]
+        return _proc_dict
+
+    else:
+        def _proc_seq(arguments):
+            check_arity(arguments, 1)
+            arg = strict(arguments[0])
+            check_type(arg, Number)
+            seq, idx = fun.value, arg.value
+            idx = int(round(idx))
+            item = seq[idx:idx+1] if isinstance(fun, Bytes) else seq[idx]
+            if isinstance(fun, List):
+                return item
+            elif isinstance(fun, String):
+                return String(item)
+            elif isinstance(fun, Bytes):
+                return Bytes(item)
+        return _proc_seq
+
+
+def find_builtin(id):
+    '''Finds the recipe function corresponding to the builtin function id.
+    Args:
+        id: Built-in Function ID
+    Returns:
+        Return corresponding function that takes arguments
     '''
-    def _strict(arr): return [strict(a) for a in arr]
-    inst = encode_number(i)
-
-    if inst == 'ㅁㄹ':  # 목록
-        return List(list(argv))
-
-    if inst == 'ㅁㅈ':  # 문자열
-        check_arity(argv, [0, 1])
-        if len(argv) == 0:
-            return String('')
-        [arg] = _strict(argv)
-        check_type(arg, (Number, String))
-        if is_type(arg, String):
-            return arg
-        elif arg.value == int(arg.value):
-            return String(str(int(arg.value)))
-        else:
-            return String(str(arg.value))
-
-    if inst == 'ㅂㄱ':  # 빈값
-        check_arity(argv, 0)
-        return Nil()
-
-    for name in builtins.__all__:
-        builtin = __import__('pbhhg_py.builtins.' + name, fromlist=[name])
-        if inst in builtin.tbl:
-            return builtin.tbl[inst](argv, _strict)
-
+    inst = encode_number(id)
+    if inst in BUITLINS:
+        return BUITLINS[inst]
     raise ValueError('Unexpected builtin functions ' + inst)
+
+
+def build_builtin_tables():
+    def _strict(argv):
+        return [strict(arg) for arg in argv]
+
+    table = {}
+    for name in builtins.__all__:
+        imported = __import__('pbhhg_py.builtins.' + name, fromlist=[name])
+        new_table = imported.build_tbl(proc_functional, _strict)
+        table.update(new_table)
+    return table
+
+BUITLINS = build_builtin_tables()

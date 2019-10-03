@@ -1,5 +1,16 @@
 """Checking tools for arguments."""
 
+from pbhhg_py import abstract_syntax as AS
+
+def recursive_map(item, fn):
+    item = fn(item)
+    if isinstance(item, AS.List):
+        return AS.List(tuple(recursive_map(a, fn) for a in item.value))
+    if isinstance(item, AS.Dict):
+        d = item.value
+        return AS.Dict({k: recursive_map(d[k], fn) for k in d})
+    return item
+
 
 def _force_list(condition):
     if isinstance(condition, list):

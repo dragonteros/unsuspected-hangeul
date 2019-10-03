@@ -27,16 +27,16 @@ def proc_fundef(fundef_node):
 
 def proc_funcall(call_node):
     args = call_node.args
-    commented_out = '    // ' if len(args) != 2 else '    '
-    args = [ast.literal_eval(arg) for arg in args]
-    args = [json.dumps(arg, ensure_ascii=False) for arg in args]
-    return commented_out + '_test({})'.format(', '.join(args))
+    args = (ast.literal_eval(arg) for arg in args)
+    args = (repr(arg) for arg in args)
+    return '    _test({})'.format(', '.join(args))
 
 
 if __name__ == '__main__':
     generated = []
 
-    tests = ['test/test_*.py', 'test/builtins/test_*.py']
+    tests = ['test/test_*.py', 'test/test_builtins/test_*.py',
+             'test/test_modules/test_*.py']
     tests = [files for fpath in tests for files in glob(fpath)]
     for path in tests:
         if 'test_base.py' in path or 'test_check.py' in path:
@@ -48,13 +48,27 @@ if __name__ == '__main__':
         module_node = ast.parse(program)
         generated.append(proc_module(module_node))
 
-    with open('test.js', 'w') as writer:
-        writer.write('''const main = require('./pbhhg').main
+    with open('test/test.js', 'w') as writer:
+        writer.write('''const pbhhg = require('../pbhhg_js/dist/pbhhg')
+const loadUtils = require('../pbhhg_js/node').loadUtils
 const assert = require('assert')
 
-function _test (program, value) {
-  assert.strictEqual(main(program)[0], value)
+function makeInput (input) {
+  var lines = input? input.split('\\n'): ''
+  return () => lines.shift()
 }
 
+function _test (program, value, input, output) {
+  var printed = []
+  const ioUtils = {
+    input: makeInput(input),
+    print: s => printed.push(s)
+  }
+  const result = pbhhg.main(program, ioUtils, loadUtils, false)
+  assert.deepStrictEqual(result[0], value)
+  if (output) {
+    assert.strictEqual(printed.join('\\n').trim(), output.trim())
+  }
+}
 ''')
         writer.write('\n\n'.join(generated) + '\n')

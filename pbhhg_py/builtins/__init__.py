@@ -1,1 +1,1 @@
-__all__ = ['arithmetics', 'io', 'logic', 'sequence', 'string']
+__all__ = ['arithmetics', 'constructors', 'functional', 'io', 'logic', 'module', 'sequence', 'string']

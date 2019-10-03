@@ -1,0 +1,59 @@
+* {
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #111;
+    margin: 0;
+}
+
+@media (min-width: 610px) {
+    .wrapper {
+    width: 600px;
+    display: inline-block;
+    }
+}
+
+@media (max-width: 610px) {
+    .wrapper {
+    width: 100%;
+    display: inline-block;
+    }
+}
+
+header .wrapper * {
+    float: right;
+}
+
+header {
+    width: 100%;
+    top: 0;
+    position: fixed;
+    background-color: #333;
+    text-align: center
+}
+
+main {
+    margin-top: 2em;
+    text-align: center
+}
+
+textarea {
+    color: #ddd;
+    background-color: #222;
+    font-family: serif;
+    width: 100%;
+    border: none;
+}
+
+#output {
+    text-align: justify;
+    width: 100%;
+    background-color: #333;
+    color: #ccc;
+}
+
+.warning {
+    color: #f70;
+    font-weight: bold;
+}

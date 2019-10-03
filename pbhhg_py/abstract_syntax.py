@@ -5,7 +5,6 @@ Literal = namedtuple('Literal', 'value')  # integer
 FunRef = namedtuple('FunRef', 'rel')  # integer
 ArgRef = namedtuple('ArgRef', 'relA relF')  # relF integer
 FunDef = namedtuple('FunDef', 'body')
-BuiltinFun = namedtuple('BuiltinFun', 'id')  # integer
 FunCall = namedtuple('FunCall', 'fun argv')
 
 # Env
@@ -14,14 +13,46 @@ Env = namedtuple('Env', 'funs args')
 # Values
 Number = namedtuple('Number', 'value')
 Boolean = namedtuple('Boolean', 'value')
-Closure = namedtuple('Closure', 'body env')
 List = namedtuple('List', 'value')
 String = namedtuple('String', 'value')
+Bytes = namedtuple('Bytes', 'value')
 IO = namedtuple('IO', 'inst argv')
 Nil = namedtuple('Nil', '')
 
-# Intermediate values
-Expr = namedtuple('Expr', 'expr env cache_box')
-Any = (Number, Boolean, Closure, List, String, IO, Nil)
 
-# BuiltinModule = namedtuple('BuiltinModule', 'imported')
+class Dict (namedtuple('Dict', 'value')):
+    def __hash__(self):
+        return hash(tuple(self.value.items()))
+
+
+# Intermediate values
+
+
+class Function (object):
+    def __hash__(self):
+        return id(self)
+
+    def __eq__(self, other):
+        return self is other
+
+
+class Closure (Function):
+    def __init__(self, body, env):
+        self.body = body
+        self.env = env
+
+    def __str__(self):
+        return '<Closure created at depth {}>'.format(
+            len(self.env.args))
+
+    def __call__(self, argv):
+        canned_funs, canned_args = self.env
+        new_env = Env(canned_funs, canned_args + [argv])
+        return Expr(self.body, new_env, [])
+
+
+Expr = namedtuple('Expr', 'expr env cache_box')
+
+# Collection
+Callable = (Function, Boolean, List, Dict, String, Bytes)
+Any = (Number, Callable, IO, Nil)

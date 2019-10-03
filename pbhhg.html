@@ -5,68 +5,29 @@
 
 <head>
   <title>평범한 한글 JS 인터프리터</title>
-  <script src='pbhhg.js' charset="UTF-8"></script>
-  <style>
-    * {
-      box-sizing: border-box;
+  <script>
+    var exports = {}
+    var ioUtils = {
+      print: alert,
+      input: function () { return prompt('') }
     }
-
-    body {
-      background-color: #111;
-      margin: 0;
+    var loadUtils = {
+      load: throwUnimplemented,
+      isFile: throwUnimplemented,
+      listdir: throwUnimplemented,
+      joinPath: throwUnimplemented,
+      normalizePath: throwUnimplemented,
     }
-
-    @media (min-width: 610px) {
-      .wrapper {
-        width: 600px;
-        display: inline-block;
-      }
+    function throwUnimplemented () {
+      throw Error('File system is not yet implemented.')
     }
-
-    @media (max-width: 610px) {
-      .wrapper {
-        width: 100%;
-        display: inline-block;
-      }
+    function escapeBracket (string) {
+      return string.replace('<', '&lt;').replace('>', '&gt;')
     }
-
-    header .wrapper * {
-      float: right;
-    }
-
-    header {
-      width: 100%;
-      top: 0;
-      position: fixed;
-      background-color: #333;
-      text-align: center
-    }
-
-    main {
-      margin-top: 2em;
-      text-align: center
-    }
-
-    textarea {
-      color: #ddd;
-      background-color: #222;
-      font-family: serif;
-      width: 100%;
-      border: none;
-    }
-
-    #output {
-      text-align: justify;
-      width: 100%;
-      background-color: #333;
-      color: #ccc;
-    }
-
-    .warning {
-      color: #f70;
-      font-weight: bold;
-    }
-  </style>
+  </script>
+  <script src='pbhhg_js/dist/pbhhg.js' charset="UTF-8"></script>
+  <link rel='stylesheet' href='pbhhg_js/dist/index.css'>
+  </link>
 </head>
 
 <body>
@@ -81,6 +42,7 @@
       <textarea id='code' rows=20>날마다 날마다 늘어간 기약과 더하던 후회다.</textarea>
       <div id='output'>결과 (객체 1개): 322</div>
     </div>
+    </div>
   </main>
 
   <script>
@@ -91,46 +53,23 @@
       output.innerHTML = '결과 (객체 0개):'
     }
     function run() {
-      var result
-      var counter
       try {
-        result = main(code.value, formatter)
-        counter = result.length
+        var result = exports.main(code.value, ioUtils, loadUtils)
+        var counter = result.length
         if (counter >= 2) {
-            counter = "<span class='warning'>(객체 " + counter + "개)</span>"
+          counter = "<span class='warning'>(객체 " + counter + "개)</span>"
         } else {
-            counter = "(객체 " + counter + "개)"
+          counter = "(객체 " + counter + "개)"
         }
-        result = '결과 ' + counter + ': ' + result.join(' ')
+        result = '결과 ' + counter + ': ' + escapeBracket(result.join(' '))
       } catch (error) {
         result = '문제가 생겼습니다. ' + error
       }
       output.innerHTML = result
     }
-    code.addEventListener('keydown', e => {
+    code.addEventListener('keydown', function (e) {
       if (e.ctrlKey && e.key == 'Enter') run()
     })
-
-    /* Converts the value into a string */
-    function formatter(value) {
-        value = strict(value)
-        if (value instanceof IOV) { 
-            return 'IO(' + formatter(doIO(value)) + ')'
-        } else if (value instanceof NumberV) {
-            return value.value
-        } else if (value instanceof BooleanV) {
-            return value.value? 'True': 'False'
-        } else if (value instanceof StringV) {
-            return "'" + value.value + "'"
-        } else if (value instanceof ListV) {
-            return '[' + value.value.map(formatter).join(', ') + ']'
-        } else if (value instanceof ClosureV) {
-            return '&lt;Closure created at depth ' + value.env.args.length + '&gt;'
-        } else if (value instanceof NilV) {
-            return 'Nil'
-        }
-        throw EvalError('Unexpected value: ' + value)
-    }
   </script>
 </body>
 

@@ -1,0 +1,39 @@
+import (조각글 절댓값 ㅂㅎㄷ)
+import (조각글 팔로나눈몫 ㅂㅎㄷ)
+import (조각글 팔로나눈나머지 ㅂㅎㄷ)
+import (조각글 표 ㅂㅎㄷ)
+
+[ def encode_number(number):
+    ㄱㅇㄱ ㄱㅇㄴㄱ ㅎㄴ
+    ㅁㅈㅎㄱ
+    [ def to_oct(to_parse, parsed):
+        ㄴㅇㄱ
+
+        ㄱㅇㄱ ㄴㅇㄴㄱㅎㄴ  # quotient..next to_parse
+        ㄱㅇㄱ ㄷㅇㄴㄱㅎㄴ  # remainder
+        [ def _(remainder):
+            ㄴㅇㄴ (ㄱㅇㄱ ㄹㅇㄴㄱㅎㄴ) ㄷㅎㄷ  # next parsed
+        ㅎ]
+        ㅎㄴ
+        ㄱㅇㅎㄷ
+
+        (ㄱㅇㄱ ㄱ ㄶㄷ)ㅎㄷ
+    ㅎ]
+    ㅎㄷ
+
+    [ def encode_sign(encoded):
+        ㄱㅇㄱ
+
+        '' ㅁㅈㅎㄱ
+        'ㄱ' ㄹㅇㄴㄱㅎㄴ
+        is_negative = ㄱㅇㄴ ㄱ ㅈㅎㄷ
+        is_even_lengthed = ㄴㄱ ㄱㅇㄱ ㅈㄷㅎㄴ ㅅㅎㄷ ㄴ ㄶㄷ
+        ㄶㄷ
+        ㅎㄷ
+
+        ㄷㅎㄷ
+    ㅎ]
+    ㅎㄴ
+ㅎ]
+
+ㅎㅎㅁ  # /import

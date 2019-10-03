@@ -1,0 +1,29 @@
+{
+  "name": "unsuspected-hangeul",
+  "version": "0.6.0",
+  "main": "pbhhg.js",
+  "dependencies": {
+    "big-integer": "^1.6.45",
+    "readline-sync": "^1.4.10"
+  },
+  "devDependencies": {
+    "mocha": "^6.2.0",
+    "webpack": "^4.40.2",
+    "webpack-cli": "^3.3.9"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dragonteros/unsuspected-hangeul.git"
+  },
+  "keywords": [
+    "esoteric-language"
+  ],
+  "author": "dragonteros",
+  "bugs": {
+    "url": "https://github.com/dragonteros/unsuspected-hangeul/issues"
+  },
+  "scripts": {
+    "test": "mocha",
+    "build": "webpack"
+  }
+}
