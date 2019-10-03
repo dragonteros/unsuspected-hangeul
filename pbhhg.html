@@ -8,7 +8,7 @@
   <script>
     var exports = {}
     var ioUtils = {
-      print: alert,
+      print: function (s) { alert(s) },
       input: function () { return prompt('') }
     }
     var loadUtils = {
