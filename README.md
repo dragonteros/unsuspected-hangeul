@@ -327,7 +327,9 @@ def func(*argv):
   * `python -m pbhhg_py.main [문자열]` => 주어진 문자열을 실행해서 결과 출력
 * JS 구현체:
   * Node.js 환경: `npm install`로 의존성 설치 후 `node pbhhg_js/node.js`
-  * 웹 환경: [`pbhhg.html`](https://dragonteros.github.io/unsuspected-hangeul/pbhhg.html) (파일에서 모듈 불러오기는 미구현)
+  * 웹 환경:
+    - [`pbhhg.html`](https://dragonteros.github.io/unsuspected-hangeul/pbhhg.html) (파일에서 모듈 불러오기는 미구현)
+    - [unsuspected-hangeul-ide](https://dragonteros.github.io/unsuspected-hangeul-ide/index.html)
 * C++ 구현체: [kmc7468/unsuspected-hangeul-cpp](https://github.com/kmc7468/unsuspected-hangeul-cpp)
 
 
