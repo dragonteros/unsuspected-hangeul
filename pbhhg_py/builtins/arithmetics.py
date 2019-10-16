@@ -10,7 +10,7 @@ def build_tbl(proc_functional, _strict):
         if is_type(argv, Boolean):
             return Boolean(all(a.value for a in argv))
         elif is_type(argv, Number):
-            product = 1.0
+            product = 1
             for a in argv:
                 product *= a.value
             return Number(product)
