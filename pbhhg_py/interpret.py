@@ -3,46 +3,62 @@ from pbhhg_py import builtins
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import encode_number
 from pbhhg_py.check import *
-from pbhhg_py.check import recursive_map
+from pbhhg_py.check import recursive_strict
 
 
-def strict(value):
-    '''Forces strict evaluation of the value'''
-    if isinstance(value, Expr):
-        expr, env, cache_box = value
-        if cache_box:
-            return cache_box[0]
-        else:
-            cache = strict(interpret(expr, env))
-            value.cache_box.append(cache)
-            return cache
-    else:
+def evaluate(coroutine):
+    '''Executes coroutine and provides strictly evaluated values
+       as it requests.'''
+    value = None
+    stack_of_cortns = [coroutine]
+    while stack_of_cortns:
+        cortn = stack_of_cortns[-1]
+        try:
+            value = cortn.send(value)
+            stack_of_cortns.append(interpret(value))
+            value = None
+        except StopIteration as result:
+            value = result.value
+            stack_of_cortns.pop()
+    return value
+
+
+def interpret(value):
+    '''Interpreter coroutine.
+    Args:
+        value: a pbhhg value to interpret
+    Yields:
+        expr: an Expr value to send to main routine
+            which in turn sends strictly evaluated value
+    Returns:
+        Strictly evaluated version of value.
+    '''
+    if not isinstance(value, Expr):
         return value
+    expr, env, cache_box = value
+    if cache_box:
+        return cache_box[0]
 
-
-def interpret(expr, env):
-    '''Evaluates the expression in given environment and returns a value'''
     if isinstance(expr, Literal):
-        return Number(expr.value)
+        cache = Number(expr.value)
 
     elif isinstance(expr, FunRef):
-        return env.funs[-expr.rel-1]
+        cache = yield env.funs[-expr.rel-1]
 
     elif isinstance(expr, ArgRef):
         assert len(env.funs) == len(env.args)
         relA, relF = expr
         args = env.args[-relF-1]
 
-        relA = strict(interpret(relA, env))
+        relA = yield Expr(relA, env, [])
         check_type(relA, Number)
         relA = int(round(relA.value))
 
-        if 0 <= relA < len(args):
-            return args[relA]
-
-        raise ValueError(
-            ('Out of Range: {} arguments received '
-                'but {}-th argument requested').format(len(args), relA))
+        if not 0 <= relA < len(args):
+            raise ValueError(
+                ('Out of Range: {} arguments received '
+                 'but {}-th argument requested').format(len(args), relA))
+        cache = yield args[relA]
 
     elif isinstance(expr, FunDef):
         funs, args = env
@@ -50,16 +66,19 @@ def interpret(expr, env):
         new_env = Env(new_funs, args)
         closure = Closure(expr.body, new_env)
         new_env.funs.append(closure)
-        return closure
+        cache = closure
 
     elif isinstance(expr, FunCall):
         fun, argv = expr
         fun = Expr(fun, env, [])
         argv = [Expr(arg, env, []) for arg in argv]
-        recipe = proc_functional(fun, allow=Callable)
-        return recipe(argv)
+        recipe = yield from proc_functional(fun, allow=Callable)
+        cache = yield from recipe(argv)
+    else:
+        raise ValueError('Unexpected expression: {}'.format(expr))
 
-    raise ValueError('Unexpected expression: {}'.format(expr))
+    cache_box.append(cache)
+    return cache
 
 
 def proc_functional(fun, allow=(), stricted=None):
@@ -69,12 +88,12 @@ def proc_functional(fun, allow=(), stricted=None):
         allow: A list of types that are allowed for execution.
         stricted: Cached strict value of fun
     Returns:
-        A recipe function that receives argument list and returns the value.
+        A generator that receives argument list and returns the maybe-Expr value.
     """
     if isinstance(fun, Expr) and isinstance(fun.expr, Literal):
         return find_builtin(fun.expr.value)
 
-    fun = stricted or strict(fun)
+    fun = stricted or (yield fun)
     allowed_by_default = (Function, )
     check_type(fun, tuple(allow) + allowed_by_default)
 
@@ -84,26 +103,26 @@ def proc_functional(fun, allow=(), stricted=None):
     elif isinstance(fun, Boolean):
         def _proc_boolean(arguments):
             check_arity(arguments, 2)
-            return arguments[0 if fun.value else 1]
+            return (yield arguments[0 if fun.value else 1])
         return _proc_boolean
 
     elif isinstance(fun, Dict):
         def _proc_dict(arguments):
             check_arity(arguments, 1)
-            arg = recursive_map(arguments[0], strict)
-            return fun.value[arg]
+            arg = yield from recursive_strict(arguments[0])
+            return (yield fun.value[arg])
         return _proc_dict
 
     else:
         def _proc_seq(arguments):
             check_arity(arguments, 1)
-            arg = strict(arguments[0])
+            arg = yield arguments[0]
             check_type(arg, Number)
             seq, idx = fun.value, arg.value
             idx = int(round(idx))
             item = seq[idx:idx+1] if isinstance(fun, Bytes) else seq[idx]
             if isinstance(fun, List):
-                return item
+                return (yield item)
             elif isinstance(fun, String):
                 return String(item)
             elif isinstance(fun, Bytes):
@@ -125,14 +144,12 @@ def find_builtin(id):
 
 
 def build_builtin_tables():
-    def _strict(argv):
-        return [strict(arg) for arg in argv]
-
     table = {}
     for name in builtins.__all__:
         imported = __import__('pbhhg_py.builtins.' + name, fromlist=[name])
-        new_table = imported.build_tbl(proc_functional, _strict)
+        new_table = imported.build_tbl(proc_functional)
         table.update(new_table)
     return table
+
 
 BUITLINS = build_builtin_tables()

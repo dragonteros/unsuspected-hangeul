@@ -2,10 +2,10 @@ from pbhhg_py.abstract_syntax import *
 from pbhhg_py.check import *
 
 
-def build_tbl(proc_functional, _strict):
+def build_tbl(proc_functional):
     def _str_to_number(argv):
         check_arity(argv, [1, 2])
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         string = argv[0]
         check_type(string, String)
         base = argv[1] if len(argv) > 1 else Number(10)
@@ -22,7 +22,7 @@ def build_tbl(proc_functional, _strict):
 
     def _split(argv):
         check_arity(argv, [1, 2])
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         check_type(argv, String)
         src, delimiter = (argv + [String('')])[:2]
         if delimiter.value:
@@ -33,11 +33,11 @@ def build_tbl(proc_functional, _strict):
 
     def _join(argv):
         check_arity(argv, [1, 2])
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         seq, delimiter = (argv + [String('')])[:2]
         check_type(seq, List)
         check_type(delimiter, String)
-        pieces = _strict(seq.value)
+        pieces = yield from [(yield arg) for arg in seq.value]
         check_type(pieces, String)
         return String(delimiter.value.join(piece.value for piece in pieces))
 

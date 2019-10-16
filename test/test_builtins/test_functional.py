@@ -8,6 +8,8 @@ class TestFunctional(TestBase):
         _test('ㄱ ㄴ ㄷ ㅁㅀㄹ ㄴㄱㅎㄱ ㅎㄴ', "[0, 1, 2]")
         _test('ㄱ ㄴ ㅁㅀㄷ ㄱㅈㅎㄱ ㅁㅂㅎㄴ ㅁㅈ ㄴㄱㅎㄷ ㅎㄴ', "'1'")
         _test('ㄷ ㅁㅈ (ㄱㅇㄱ ㄱㅇㄱ ㄷㅎㄷㅎ) ㅅㅅ ㄴㄱㅎㄹ ㅎㄴ', "22")
+        _test('ㄵㄱㄱㄹ ㅁㅈㅎㄴ ㅂㄹㅎㄴ (ㄱㅇㄱ ㄱㅇㄱ ㄷㅎㄷㅎ) ㅅㅅ ㄴㄱㅎㄷ ㅁㄷㅎㄷ',
+              "[11, 22, 33, 44, 55]")
 
     def test_spread(self):
         _test = self._assert_execute

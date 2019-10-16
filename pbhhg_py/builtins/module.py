@@ -15,7 +15,7 @@ class BuiltinModule(Function):
         return self._str
 
     def __call__(self, args):
-        return self.module(args)
+        return (yield from self.module(args))
 
 
 BUITLIN_MODULE_REGISTRY = {}
@@ -41,7 +41,7 @@ def load_from_path(filepath):
         raise ValueError('A module file should contain exactly '
                          'one object but received: {}'.format(len(exprs)))
     env = Env([], [])
-    module = Expr(exprs[0], env, [])
+    module = yield Expr(exprs[0], env, [])
 
     MODULE_REGISTRY[filepath] = module
     return module
@@ -69,7 +69,7 @@ def load_from_literal(literals):
     filepath = search_file_from_literal(literals)
     if filepath is None:
         raise ImportError(errmsg)
-    module = load_from_path(filepath)
+    module = yield from load_from_path(filepath)
     return module
 
 
@@ -118,23 +118,23 @@ def construct_builtin_module(keys, data):
     return _key, _value
 
 
-def build_tbl(proc_functional, _strict):
+def build_tbl(proc_functional):
     def _register_builtin_module(name):
         module = __import__('pbhhg_py.modules.' + name, fromlist=[name])
-        _key, data = module.build_tbl(proc_functional, _strict)
+        _key, data = module.build_tbl(proc_functional)
         return construct_builtin_module([_key], data)
 
     def _import(argv):
         check.check_min_arity(argv, 1)
         if all(is_literal_expr(arg) for arg in argv):
             literals = [arg.expr.value for arg in argv]
-            module = load_from_literal(literals)
+            module = yield from load_from_literal(literals)
             return module
 
         check.check_arity(argv, 1)
-        [filepath] = _strict(argv)
+        filepath = yield argv[0]
         check.check_type(filepath, String)
-        module = load_from_path(filepath.value)
+        module = yield from load_from_path(filepath.value)
         return module
 
     BUITLIN_MODULE_REGISTRY.update(

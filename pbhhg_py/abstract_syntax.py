@@ -29,26 +29,30 @@ class Dict (namedtuple('Dict', 'value')):
 
 
 class Function (object):
+    def __init__(self, adj=''):
+        self._str = '<{}Function>'.format(adj)
+
     def __hash__(self):
         return id(self)
 
     def __eq__(self, other):
         return self is other
 
+    def __str__(self):
+        return self._str
+
 
 class Closure (Function):
     def __init__(self, body, env):
         self.body = body
         self.env = env
-
-    def __str__(self):
-        return '<Closure created at depth {}>'.format(
-            len(self.env.args))
+        self._str = '<Closure created at depth {}>'.format(
+            len(env.args))
 
     def __call__(self, argv):
         canned_funs, canned_args = self.env
         new_env = Env(canned_funs, canned_args + [argv])
-        return Expr(self.body, new_env, [])
+        return (yield Expr(self.body, new_env, []))
 
 
 Expr = namedtuple('Expr', 'expr env cache_box')

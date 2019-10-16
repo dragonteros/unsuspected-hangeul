@@ -16,7 +16,7 @@ import sys
 
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import parse
-from pbhhg_py.interpret import strict, proc_functional
+from pbhhg_py.interpret import proc_functional, evaluate
 from pbhhg_py.check import check_type
 
 
@@ -30,13 +30,14 @@ def _do_single_IO(io_value):
         print(argv[0].value, flush=True)
         return Nil()
     if inst == 'ㄱㅅ':  # return
-        return strict(argv[0])
+        return (yield argv[0])
     if inst == 'ㄱㄹ':  # bind
         *arguments, binder = argv
-        arguments = [strict(arg) for arg in arguments]
+        arguments = yield from [(yield arg) for arg in arguments]
         check_type(arguments, IO)
-        arguments = [do_IO(arg) for arg in arguments]
-        result = strict(proc_functional(binder)(arguments))
+        arguments = yield from [(yield from do_IO(arg)) for arg in arguments]
+        _fn = yield from proc_functional(binder)
+        result = yield from _fn(arguments)
         check_type(result, IO)
         return result
 
@@ -45,16 +46,18 @@ def do_IO(io_value):
     '''Receives an IO and produces non-IO non-Expr value.'''
     check_type(io_value, IO)
     while isinstance(io_value, IO):
-        io_value = _do_single_IO(io_value)
+        io_value = yield from _do_single_IO(io_value)
     return io_value
 
 
 def formatter(value, format_io=True):
     '''Converts the value into Python number, bool and str for writing tests'''
-    value = strict(value)
+    value = yield value
     if isinstance(value, IO):
         _format = 'IO({})' if format_io else '{}'
-        return _format.format(formatter(do_IO(value)))
+        arg = yield from do_IO(value)
+        arg = yield from formatter(arg)
+        return _format.format(arg)
 
     if isinstance(value, Number):
         arg = value.value
@@ -67,11 +70,12 @@ def formatter(value, format_io=True):
         arg = ''.join(r'\x{:02X}'.format(b) for b in value.value)
         return "b'{}'".format(arg)
     if isinstance(value, List):
-        arg = [formatter(item, format_io) for item in value.value]
+        arg = yield from [(yield from formatter(item, format_io)) for item in value.value]
         return '[{}]'.format(', '.join(arg))
     if isinstance(value, Dict):
         d = value.value
-        d = [(formatter(k, format_io), formatter(d[k], format_io)) for k in d]
+        d = yield from [((yield from formatter(k, format_io)),
+                         (yield from formatter(d[k], format_io))) for k in d]
         d = sorted(d, key=lambda pair: pair[0])
         d = ', '.join("{}: {}".format(k, v) for k, v in d)
         return '{' + d + '}'
@@ -86,14 +90,15 @@ def main(arg, format_io=True):
     '''Main procedure. Parses, evaluates, and converts to str.
     Args:
         arg: Raw string that encodes a program
-        formatter: A function that maps a pbhhg value to str.
+        format_io: Whether to format IOs in the form `IO(.)`
     Returns:
         A list of strings representing the resulting values
     '''
     exprs = parse(arg)
     env = Env([], [])
     values = [Expr(expr, env, []) for expr in exprs]
-    return [formatter(value, format_io) for value in values]
+    formatters = [formatter(value, format_io) for value in values]
+    return [evaluate(f) for f in formatters]
 
 
 def print_main_with_warning(arg):

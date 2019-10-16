@@ -8,9 +8,7 @@ from pbhhg_py import check
 class Codec(AS.Function):
     CODEC_TBL = ['utf', 'unsigned', 'signed', 'float']
 
-    def __init__(self, _strict, scheme, num_bytes, big_endian=None):
-        self._strict = _strict
-
+    def __init__(self, scheme, num_bytes, big_endian=None):
         check.check_type([scheme, num_bytes], AS.Number)
         self.scheme = self.CODEC_TBL[scheme.value]
         self.num_bytes = num_bytes.value
@@ -27,7 +25,7 @@ class Codec(AS.Function):
             self.scheme, self.num_bytes, self.big_endian)
 
     def __call__(self, argv):
-        argv = self._strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         return self._codec(*argv)
 
     def _get_codec(self):
@@ -61,11 +59,11 @@ class Codec(AS.Function):
         raise NotImplementedError()
 
 
-def build_tbl(proc_functional, _strict):
+def build_tbl(proc_functional):
     def _codec(argv):
         check.check_arity(argv, [2, 3])
-        argv = _strict(argv)
-        return Codec(_strict, *argv)
+        argv = yield from [(yield arg) for arg in argv]
+        return Codec(*argv)
 
     return ('ㅂ', {
         'ㅂ': _codec,  # 바꾸기

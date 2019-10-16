@@ -14,7 +14,7 @@ class PipeV extends AS.FunctionV {
 }
 class CollectV extends AS.FunctionV {
   constructor (fn, strict) {
-    super('Collect-and-Receiving ')
+    super('Collectedly-Receiving ')
     this.fn = fn
     this.strict = strict
   }
@@ -28,7 +28,7 @@ class CollectV extends AS.FunctionV {
 }
 class SpreadV extends AS.FunctionV {
   constructor (fn) {
-    super('Spread-and-Receiving ')
+    super('Spreadly-Receiving ')
     this.fn = fn
   }
 

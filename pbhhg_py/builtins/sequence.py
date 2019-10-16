@@ -4,16 +4,16 @@ from pbhhg_py.check import *
 Sequence = (List, String, Bytes)
 
 
-def build_tbl(proc_functional, _strict):
+def build_tbl(proc_functional):
     def _len(argv):
         check_arity(argv, 1)
-        [seq] = _strict(argv)
+        seq = yield argv[0]
         check_type(seq, Sequence)
         return Number(len(seq.value))
 
     def _slice(argv):
         check_arity(argv, [2, 3, 4])
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         check_type(argv[0], Sequence)
         check_type(argv[1:], Number)
 
@@ -31,20 +31,21 @@ def build_tbl(proc_functional, _strict):
 
     def _map(argv):
         check_arity(argv, 2)
-        _fn = proc_functional(argv[1])
-        [seq] = _strict(argv[:1])
+        seq = yield argv[0]
         check_type(seq, List)  # ?
-        return List(tuple(_fn([arg]) for arg in seq.value))
+        _fn = yield from proc_functional(argv[1])
+        value = yield from [(yield from _fn([arg])) for arg in seq.value]
+        return List(value)
 
     def _filter(argv):  # maybe lazy later?
         check_arity(argv, 2)
-        _fn = proc_functional(argv[1])
-        [seq] = _strict(argv[:1])
+        seq = yield argv[0]
         check_type(seq, List)  # ?
-        fit_check = [_fn([arg]) for arg in seq.value]
-        fit_check = _strict(fit_check)
+        _fn = yield from proc_functional(argv[1])
+        fit_check = yield from [(yield from _fn([arg])) for arg in seq.value]
         check_type(fit_check, Boolean)
-        return List(tuple(arg for arg, fits in zip(seq.value, fit_check) if fits.value))
+        zipped = zip(seq.value, fit_check)
+        return List(tuple(arg for arg, fits in zipped if fits.value))
 
     def _fold(argv):
         check_arity(argv, [2, 3])
@@ -54,13 +55,13 @@ def build_tbl(proc_functional, _strict):
             argv = [x, y]
 
         preserved_argv = argv
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         from_right = is_type(argv[0], List)
         maybe_reversed = reversed if from_right else lambda x: x
 
         fun, seq = maybe_reversed(argv)
         _fn, _ = maybe_reversed(preserved_argv)
-        _fn = proc_functional(_fn, stricted=fun)
+        _fn = yield from proc_functional(_fn, stricted=fun)
         check_type(seq, List)
 
         acc = init
@@ -71,8 +72,8 @@ def build_tbl(proc_functional, _strict):
 
         for item in feed:
             args = list(maybe_reversed([acc, item]))
-            acc = _fn(args)
-        return acc
+            acc = yield from _fn(args)
+        return (yield acc)
 
     return {
         'ㅈㄷ': _len,  # 장단

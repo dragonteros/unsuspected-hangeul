@@ -2,26 +2,24 @@ from pbhhg_py.abstract_syntax import *
 from pbhhg_py.check import *
 
 
-def build_tbl(proc_functional, _strict):
-    def _mapper(x):
-        return _strict([x])[0]
-
+def build_tbl(proc_functional):
     def _dict(argv):
         if len(argv) % 2 == 1:
             raise ValueError('Dict requires even number of arguments '
                              'but received: {}'.format(len(argv)))
         keys, values = argv[0::2], argv[1::2]
-        keys = [recursive_map(k, _mapper) for k in keys]
+        keys = yield from [(yield from recursive_strict(k)) for k in keys]
         return Dict({k: v for k, v in zip(keys, values)})
 
     def _list(argv):
         return List(tuple(argv))
+        yield
 
     def _string(argv):
         check_arity(argv, [0, 1])
         if len(argv) == 0:
             return String('')
-        [arg] = _strict(argv)
+        arg = yield argv[0]
         check_type(arg, (Number, String))
         if is_type(arg, String):
             return arg
@@ -33,6 +31,7 @@ def build_tbl(proc_functional, _strict):
     def _nil(argv):
         check_arity(argv, 0)
         return Nil()
+        yield
 
     return {
         'ㅅㅈ': _dict,  # 사전

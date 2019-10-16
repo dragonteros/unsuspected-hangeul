@@ -2,13 +2,17 @@
 
 from pbhhg_py import abstract_syntax as AS
 
-def recursive_map(item, fn):
-    item = fn(item)
+
+def recursive_strict(item):
+    item = yield item
     if isinstance(item, AS.List):
-        return AS.List(tuple(recursive_map(a, fn) for a in item.value))
-    if isinstance(item, AS.Dict):
+        v = item.value
+        v = yield from [(yield from recursive_strict(a)) for a in v]
+        return AS.List(tuple(v))
+    elif isinstance(item, AS.Dict):
         d = item.value
-        return AS.Dict({k: recursive_map(d[k], fn) for k in d})
+        d = yield from {k: (yield from recursive_strict(d[k])) for k in d}
+        return AS.Dict(d)
     return item
 
 

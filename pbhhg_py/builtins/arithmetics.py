@@ -2,10 +2,10 @@ from pbhhg_py.abstract_syntax import *
 from pbhhg_py.check import *
 
 
-def build_tbl(proc_functional, _strict):
+def build_tbl(proc_functional):
     def _multiply(argv):
         check_min_arity(argv, 1)
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         check_type(argv, (Number, Boolean))
         if is_type(argv, Boolean):
             return Boolean(all(a.value for a in argv))
@@ -17,7 +17,7 @@ def build_tbl(proc_functional, _strict):
 
     def _add(argv):
         check_min_arity(argv, 1)
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         check_type(argv, [Number, Boolean, List, String, Bytes, Dict])
         if is_type(argv, Number):
             return Number(sum(a.value for a in argv))
@@ -34,7 +34,7 @@ def build_tbl(proc_functional, _strict):
 
     def _exponentiate(argv):
         check_arity(argv, 2)
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         check_type(argv, Number)
         base, exponent = argv
         return Number(base.value ** exponent.value)

@@ -10,13 +10,16 @@ def _all_equal(seq):
     return not seq or seq.count(seq[0]) == len(seq)
 
 
-def build_tbl(proc_functional, _strict):
+def build_tbl(proc_functional):
     def _listed_equals(seqs):
         """Check equality for lists of pbhhg values."""
         seqs = list(seqs)
         if not _all_equal(len(l) for l in seqs):
             return False
-        return all(_equals(tiers).value for tiers in zip(*seqs))
+        for tiers in zip(*seqs):
+            if not (yield from _equals(tiers)).value:
+                return False
+        return True
 
     def _dict_equals(dicts):
         """Check equality for dicts of pbhhg values."""
@@ -25,45 +28,51 @@ def build_tbl(proc_functional, _strict):
             return True
         if not _all_equal(d.keys() for d in dicts):
             return False
-        return all(_equals([d[k] for d in dicts]).value for k in dicts[0])
+        for k in dicts[0]:
+            if not (yield from _equals(d[k] for d in dicts)).value:
+                return False
+        return True
 
     def _equals(argv):
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         if not is_type(argv, Any):  # check all have same type
             return Boolean(False)
         if is_type(argv, Nil):
             return Boolean(True)
         if is_type(argv, List):
             lists = [seq.value for seq in argv]
-            return Boolean(_listed_equals(lists))
+            return Boolean((yield from _listed_equals(lists)))
         if is_type(argv, Dict):
             dicts = [d.value for d in argv]
-            return Boolean(_dict_equals(dicts))
+            return Boolean((yield from _dict_equals(dicts)))
         if is_type(argv, IO):
             if not _all_equal(a.inst for a in argv):
                 return Boolean(False)
-            return Boolean(_listed_equals([a.argv for a in argv]))
+            argvs = [a.argv for a in argv]
+            return Boolean((yield from _listed_equals(argvs)))
         return Boolean(_all_equal(argv))
 
     def _negate(argv):
         check_arity(argv, 1)
-        [arg] = _strict(argv)
+        arg = yield argv[0]
         check_type(arg, Boolean)
         return Boolean(not arg.value)
 
     def _less_than(argv):
         check_arity(argv, 2)
-        argv = _strict(argv)
+        argv = yield from [(yield arg) for arg in argv]
         check_type(argv, Number)
         return Boolean(argv[0].value < argv[1].value)
 
     def _true(argv):
         check_arity(argv, 0)
         return Boolean(True)
+        yield
 
     def _false(argv):
         check_arity(argv, 0)
         return Boolean(False)
+        yield
 
     return {
         'ㄴ': _equals,  # 같다 (<- 는)
