@@ -11,7 +11,7 @@ class Pipe(Function):
         for fun in self.funs:
             arg = yield from fun(args)
             args = [arg]
-        return (yield args[0])
+        return args[0]
 
 
 class Collect(Function):

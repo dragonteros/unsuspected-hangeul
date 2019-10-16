@@ -42,7 +42,7 @@ def build_tbl(proc_functional):
         seq = yield argv[0]
         check_type(seq, List)  # ?
         _fn = yield from proc_functional(argv[1])
-        fit_check = yield from [(yield from _fn([arg])) for arg in seq.value]
+        fit_check = yield from [(yield (yield from _fn([arg]))) for arg in seq.value]
         check_type(fit_check, Boolean)
         zipped = zip(seq.value, fit_check)
         return List(tuple(arg for arg, fits in zipped if fits.value))
@@ -73,7 +73,7 @@ def build_tbl(proc_functional):
         for item in feed:
             args = list(maybe_reversed([acc, item]))
             acc = yield from _fn(args)
-        return (yield acc)
+        return acc
 
     return {
         'ㅈㄷ': _len,  # 장단

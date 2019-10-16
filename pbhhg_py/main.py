@@ -35,9 +35,9 @@ def _do_single_IO(io_value):
         *arguments, binder = argv
         arguments = yield from [(yield arg) for arg in arguments]
         check_type(arguments, IO)
-        arguments = yield from [(yield from do_IO(arg)) for arg in arguments]
+        arguments = yield from [(yield from do_IO(arg)) for arg in arguments]  # really? YES
         _fn = yield from proc_functional(binder)
-        result = yield from _fn(arguments)
+        result = yield (yield from _fn(arguments))
         check_type(result, IO)
         return result
 

@@ -52,7 +52,8 @@ class Closure (Function):
     def __call__(self, argv):
         canned_funs, canned_args = self.env
         new_env = Env(canned_funs, canned_args + [argv])
-        return (yield Expr(self.body, new_env, []))
+        return Expr(self.body, new_env, [])
+        yield
 
 
 Expr = namedtuple('Expr', 'expr env cache_box')
