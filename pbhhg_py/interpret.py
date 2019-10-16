@@ -88,7 +88,7 @@ def proc_functional(fun, allow=(), stricted=None):
         allow: A list of types that are allowed for execution.
         stricted: Cached strict value of fun
     Returns:
-        A generator that receives argument list and returns the maybe-Expr value.
+        A generator that receives argument list and returns the value.
     """
     if isinstance(fun, Expr) and isinstance(fun.expr, Literal):
         return find_builtin(fun.expr.value)
