@@ -6,31 +6,35 @@ from pbhhg_py.check import *
 from pbhhg_py.check import recursive_strict
 
 
+def reg_if_eval_needed(value, cache_boxes, stack_of_cortns):
+    if not isinstance(value, Expr):
+        return value
+    if value.cache_box:
+        return value.cache_box[0]
+    cache_boxes += [value.cache_box]
+    stack_of_cortns.append((interpret(value), cache_boxes))
+    return None
+
+
 def evaluate(coroutine):
     '''Executes coroutine and provides strictly evaluated values
        as it requests.'''
+    MAX_STACK_SIZE = 5000
     value = None
     stack_of_cortns = [(coroutine, [])]
     while stack_of_cortns:
+        if len(stack_of_cortns) > MAX_STACK_SIZE:
+            raise RuntimeError('Maximum Stack Size Exceeded.')
         coroutine, cache_boxes = stack_of_cortns[-1]
         try:
             value = coroutine.send(value)
-            if isinstance(value, Expr):
-                if value.cache_box:
-                    value = value.cache_box[0]
-                else:
-                    cache_boxes = [value.cache_box]
-                    stack_of_cortns.append((interpret(value), cache_boxes))
-                    value = None
+            value = reg_if_eval_needed(value, [], stack_of_cortns)
         except StopIteration as result:
-            value = result.value
             stack_of_cortns.pop()
-            if isinstance(value, Expr):
-                cache_boxes += [value.cache_box]
-                stack_of_cortns.append((interpret(value), cache_boxes))
-                value = None
-            else:
-                while cache_boxes:
+            value = result.value
+            value = reg_if_eval_needed(value, cache_boxes, stack_of_cortns)
+            if value:
+                while cache_boxes:  # This might affect performance..
                     cache_boxes.pop().append(value)
 
     return value
@@ -39,15 +43,13 @@ def evaluate(coroutine):
 def interpret(value):
     '''Interpreter coroutine.
     Args:
-        value: a pbhhg value to interpret
+        value: an Expr value to interpret
     Yields:
         expr: an Expr value to send to main routine
             which in turn sends strictly evaluated value
     Returns:
         A little more evaluated version of value.
     '''
-    if not isinstance(value, Expr):
-        return value
     expr, env, cache_box = value
     if cache_box:
         return cache_box[0]

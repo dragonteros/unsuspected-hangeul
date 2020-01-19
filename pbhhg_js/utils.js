@@ -2,7 +2,7 @@
 import * as AS from './abstractSyntax.js'
 
 function isLiteralExpr(expr) {
-  return (expr instanceof AS.ExprV) && (expr.expr instanceof AS.Literal)
+  return expr instanceof AS.ExprV && expr.expr instanceof AS.Literal
 }
 
 function extractValue(arg) {
@@ -21,7 +21,7 @@ function recursiveMap(item, fn) {
   if (item instanceof AS.DictV) {
     const d = item.value
     const result = {}
-    Object.keys(d).forEach(function (k) {
+    Object.keys(d).forEach(function(k) {
       result[k] = recursiveMap(d[k], fn)
     })
     return new AS.DictV(result)
@@ -36,17 +36,32 @@ function _forceArray(condition) {
 
 function isType(argv, desiredTypes) {
   function matches(desiredType) {
-    return _forceArray(argv).every(function (arg) {
+    return _forceArray(argv).every(function(arg) {
       return arg instanceof desiredType
     })
   }
   return _forceArray(desiredTypes).some(matches)
 }
 
+function _formatArray(arr) {
+  if (arr.length < 2) return arr.toString()
+  return arr
+    .slice(0, -1)
+    .join(', ')
+    .concat(' and ', arr[arr.length - 1])
+}
+
 function checkType(argv, desiredTypes) {
+  argv = _forceArray(argv)
+  desiredTypes = _forceArray(desiredTypes)
   if (isType(argv, desiredTypes)) return
+  const desiredTypeNames = desiredTypes.map(t => t.displayName)
+  const argTypeNames = argv.map(a => a.constructor.displayName)
   throw TypeError(
-    'args of type ' + desiredTypes + ' expected but received: ' + argv.map(a => a.constructor)
+    'Expected arguments of the same type among ' +
+      _formatArray(desiredTypeNames) +
+      ' but received ' +
+      _formatArray(argTypeNames)
   )
 }
 
@@ -54,13 +69,21 @@ function checkArity(argv, desiredArities) {
   desiredArities = _forceArray(desiredArities)
   if (desiredArities.indexOf(argv.length) !== -1) return
   throw SyntaxError(
-    desiredArities + 'args expected but received ' + argv.length
+    'Expected ' +
+      _formatArray(desiredArities) +
+      ' arguments but received ' +
+      argv.length
   )
 }
 
 function checkMinArity(argv, minimumArity) {
   if (argv.length >= minimumArity) return
-  throw SyntaxError('At least ' + minimumArity + 'args expected but received ' + argv.length)
+  throw SyntaxError(
+    'Expected at least ' +
+      minimumArity +
+      ' arguments expected but received ' +
+      argv.length
+  )
 }
 
 /* Converts the value into string for hashing */
@@ -70,7 +93,7 @@ function toString(value, strict, ioUtils, formatIO) {
   if (ioUtils && value instanceof AS.IOV) {
     value = ioUtils.doIO(value, ioUtils)
     value = _partial(value)
-    return formatIO? 'IO(' + value + ')': value
+    return formatIO ? 'IO(' + value + ')' : value
   }
 
   if (value instanceof AS.NumberV) {

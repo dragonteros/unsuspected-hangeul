@@ -29,15 +29,23 @@ function Env (funs, args, utils) {
 function NumberV (value) {
   this.value = value // BigInteger || Number
 }
+NumberV.displayName = 'Number'
+
 function BooleanV (value) {
   this.value = value
 }
+BooleanV.displayName = 'Boolean'
+
 function ListV (value) {
   this.value = value
 }
+ListV.displayName = 'List'
+
 function StringV (value) {
   this.value = value
 }
+StringV.displayName = 'String'
+
 class BytesV {
   constructor (value) {
     this.value = value
@@ -58,6 +66,8 @@ class BytesV {
     return this.str
   }
 }
+BytesV.displayName = 'Bytes'
+
 class DictV {
   constructor (value) {
     this.value = value
@@ -79,12 +89,17 @@ class DictV {
     return this._values
   }
 }
+DictV.displayName = 'Dict'
+
 function IOV (inst, argv) {
   this.inst = inst
   this.argv = argv
 }
+IOV.displayName = 'IO'
+
 function NilV () {
 }
+NilV.displayName = 'Nil'
 
 var FUNCTION_ID_GEN = 0
 class FunctionV {
@@ -97,6 +112,7 @@ class FunctionV {
     return this.str
   }
 }
+FunctionV.displayName = 'Function'
 
 class ClosureV extends FunctionV {
   constructor (body, env) {
@@ -131,7 +147,7 @@ function ExprV (expr, env, cache) {
   this.cache = cache
 }
 const CallableV = [FunctionV, BooleanV, ListV, DictV, StringV, BytesV]
-const AnyV = [NumberV, FunctionV, BooleanV, ListV, DictV, StringV, BytesV, IOV, NilV]
+const AnyV = [NumberV, IOV, NilV].concat(CallableV)
 
 export {
   Literal,
