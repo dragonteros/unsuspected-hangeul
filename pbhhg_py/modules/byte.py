@@ -2,14 +2,14 @@
 from collections import namedtuple
 
 from pbhhg_py import abstract_syntax as AS
-from pbhhg_py import check
+from pbhhg_py import utils
 
 
 class Codec(AS.Function):
     CODEC_TBL = ['utf', 'unsigned', 'signed', 'float']
 
     def __init__(self, scheme, num_bytes, big_endian=None):
-        check.check_type([scheme, num_bytes], AS.Number)
+        utils.check_type([scheme, num_bytes], AS.Integer)
         self.scheme = self.CODEC_TBL[scheme.value]
         self.num_bytes = num_bytes.value
         self.big_endian = big_endian and big_endian.value
@@ -17,7 +17,7 @@ class Codec(AS.Function):
 
         self.endianness = ''
         if big_endian is not None:
-            check.check_type(big_endian, AS.Boolean)
+            utils.check_type(big_endian, AS.Boolean)
             self.endianness = 'big' if big_endian.value else 'little'
 
     def __repr__(self):
@@ -38,7 +38,7 @@ class Codec(AS.Function):
         encoding = 'utf-{}'.format(self.num_bytes * 8)
         if self.endianness:
             encoding = '{}-{}e'.format(encoding, self.endianness[0])
-        check.check_type(argument, [AS.String, AS.Bytes])
+        utils.check_type(argument, (AS.String, AS.Bytes))
         if isinstance(argument, AS.String):
             return AS.Bytes(argument.value.encode(encoding))
         if isinstance(argument, AS.Bytes):
@@ -47,13 +47,13 @@ class Codec(AS.Function):
     def _integer_codec(self, argument):
         endianness = self.endianness or 'little'
         signed = (self.scheme == 'signed')
-        check.check_type(argument, [AS.Number, AS.Bytes])
-        if isinstance(argument, AS.Number):
+        utils.check_type(argument, (AS.Integer, AS.Bytes))
+        if isinstance(argument, AS.Integer):
             return AS.Bytes(int.to_bytes(argument.value, self.num_bytes,
                                          endianness, signed=signed))
         elif isinstance(argument, AS.Bytes):
-            return AS.Number(int.from_bytes(argument.value,
-                                            endianness, signed=signed))
+            return AS.Integer(int.from_bytes(argument.value,
+                                             endianness, signed=signed))
 
     def _floating_point_codec(self, argument):
         raise NotImplementedError()
@@ -61,10 +61,8 @@ class Codec(AS.Function):
 
 def build_tbl(proc_functional):
     def _codec(argv):
-        check.check_arity(argv, [2, 3])
+        utils.check_arity(argv, [2, 3])
         argv = yield from [(yield arg) for arg in argv]
         return Codec(*argv)
 
-    return ('ㅂ', {
-        'ㅂ': _codec,  # 바꾸기
-    })
+    return {'ㅂ': _codec}  # 바꾸기

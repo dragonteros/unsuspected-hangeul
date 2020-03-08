@@ -4,6 +4,7 @@
   "main": "pbhhg.js",
   "dependencies": {
     "big-integer": "^1.6.45",
+    "complex.js": "^2.0.11",
     "readline-sync": "^1.4.10"
   },
   "devDependencies": {

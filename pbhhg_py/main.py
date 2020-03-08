@@ -2,22 +2,19 @@
 함수형 난해한 언어 '평범한 한글'의 구현체입니다.
 
 Updates
-* v0.6 (2019.10.03)
-  * 옛한글 지원이 추가되었습니다. 이제 모음을 공백으로 취급하지 않습니다.
-    - 주의: v0.5의 행동과 호환되지 않습니다.
-  * 사전과 바이트열이 추가되었습니다. 이제 객체는 실수, 논릿값, 문자열, 바이트열, 목록, 사전, 함수, 드나듦, 빈값의 아홉 종류입니다.
-  * 모듈 불러오기가 추가되었습니다.
-    * 실수 및 문자열과 바이트열 사이를 변환하는 모듈 `ㅂ ㅂ`이 기본 제공 모듈로 지원됩니다.
-  * 기본 제공 함수 `ㄴ`, `ㄷ`, `ㅈㄷ`, `ㅂㅈ`에 사전과 바이트열 지원을 추가했습니다.
-  * 기본 제공 함수 `ㅅㄹ`과 `ㄴㄱ`, `ㅁㅂ`, `ㅂㅂ`이 추가되었습니다.
-  * 기본 제공 함수 `ㅁㄷ`, `ㅅㅂ`, `ㅅㄹ`, `ㄱㄹ`가 함수 대신 정수 리터럴, 논릿값 등을 받을 수 있게 변경되었습니다.
+* v0.7 (2020.03.08)
+  * 복소수가 추가되고 정수가 실수에서 분리되었습니다.
+  * 기본 제공 함수로 정수 나눗셈과 나머지 연산이 추가되었습니다. 거듭제곱 연산은 모듈로 거듭제곱을 지원하도록 확장되었습니다.
+  * 인수 접근 및 목록, 문자열 등의 인덱싱 행동이 실수를 반올림하는 것에서 정수를 사용하는 것으로 일괄 변경되었습니다.
+    - 주의: v0.6의 행동과 호환되지 않습니다.
+  * 수학 모듈과 비트 연산 모듈이 추가되었습니다.
 '''
 import sys
 
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import parse
 from pbhhg_py.interpret import proc_functional, evaluate
-from pbhhg_py.check import check_type
+from pbhhg_py.utils import check_type
 
 
 def _do_single_IO(io_value):
@@ -35,7 +32,7 @@ def _do_single_IO(io_value):
         *arguments, binder = argv
         arguments = yield from [(yield arg) for arg in arguments]
         check_type(arguments, IO)
-        arguments = yield from [(yield from do_IO(arg)) for arg in arguments]  # really? YES
+        arguments = yield from [(yield from do_IO(arg)) for arg in arguments]
         _fn = yield from proc_functional(binder)
         result = yield (yield from _fn(arguments))
         check_type(result, IO)
@@ -59,9 +56,10 @@ def formatter(value, format_io=True):
         arg = yield from formatter(arg)
         return _format.format(arg)
 
-    if isinstance(value, Number):
-        arg = value.value
-        return str(int(arg) if int(arg) == arg else arg)
+    if isinstance(value, Real):
+        return str(value.value)
+    if isinstance(value, Complex):
+        return str(value)
     if isinstance(value, Boolean):
         return str(value.value)
     if isinstance(value, String):

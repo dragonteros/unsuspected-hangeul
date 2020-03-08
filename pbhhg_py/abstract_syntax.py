@@ -1,4 +1,5 @@
 from collections import namedtuple
+from math import isclose, isfinite
 
 # AST
 Literal = namedtuple('Literal', 'value')  # integer
@@ -11,13 +12,30 @@ FunCall = namedtuple('FunCall', 'fun argv')
 Env = namedtuple('Env', 'funs args')
 
 # Values
-Number = namedtuple('Number', 'value')
+Integer = namedtuple('Integer', 'value')
+Float = namedtuple('Float', 'value')
 Boolean = namedtuple('Boolean', 'value')
 List = namedtuple('List', 'value')
 String = namedtuple('String', 'value')
 Bytes = namedtuple('Bytes', 'value')
 IO = namedtuple('IO', 'inst argv')
 Nil = namedtuple('Nil', '')
+
+
+def _to_int_if_possible(num):
+    if isfinite(num) and isclose(num, int(num), abs_tol=1e-16):
+        return int(num)
+    return num
+
+
+class Complex(namedtuple('Complex', 'value')):
+    def __str__(self):
+        re = _to_int_if_possible(self.value.real)
+        im = _to_int_if_possible(self.value.imag)
+        re_str = str(re) + ('' if im < 0 else '+')
+        minus_str = '-' if im < 0 else ''
+        im_str = '' if abs(im) == 1 else str(abs(im))
+        return '{}{}{}i'.format(re_str if re else '', minus_str, im_str)
 
 
 class Dict (namedtuple('Dict', 'value')):
@@ -59,5 +77,8 @@ class Closure (Function):
 Expr = namedtuple('Expr', 'expr env cache_box')
 
 # Collection
-Callable = (Function, Boolean, List, Dict, String, Bytes)
+Real = (Integer, Float)
+Number = (Real, Complex)
+Sequence = (List, String, Bytes)
+Callable = (Function, Boolean, Sequence, Dict, Complex)
 Any = (Number, Callable, IO, Nil)

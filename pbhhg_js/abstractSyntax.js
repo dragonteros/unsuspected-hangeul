@@ -1,63 +1,102 @@
 /** Abstract syntax and values. **/
+import { isclose } from './numbers.js'
 
 /* Parser */
-function Literal (value) {
+function Literal(value) {
   this.value = value // BigInteger
 }
-function FunRef (rel) {
+function FunRef(rel) {
   this.rel = rel // int
 }
-function ArgRef (relA, relF) {
+function ArgRef(relA, relF) {
   this.relA = relA
   this.relF = relF // int
 }
-function FunDef (body) {
+function FunDef(body) {
   this.body = body
 }
-function FunCall (fun, argv) {
+function FunCall(fun, argv) {
   this.fun = fun
   this.argv = argv
 }
 
 /** Interpreter **/
-function Env (funs, args, utils) {
+function Env(funs, args, utils) {
   this.funs = funs
   this.args = args
   this.utils = utils
 }
 
-function NumberV (value) {
-  this.value = value // BigInteger || Number
+function _isPossibleInt(num) {
+  return isFinite(num) && isclose(num, Math.floor(num))
 }
-NumberV.displayName = 'Number'
 
-function BooleanV (value) {
+function _formatFloat(num) {
+  if (isFinite(num)) return num.toString()
+  if (isNaN(num)) return 'nan'
+  return num > 0 ? 'inf' : '-inf'
+}
+
+function IntegerV(value) {
+  this.value = value // BigInteger
+}
+IntegerV.displayName = 'Integer'
+
+class FloatV {
+  constructor(value) {
+    this.value = value
+  }
+
+  toString() {
+    const str = _formatFloat(this.value)
+    const trailing = _isPossibleInt(this.value) ? '.0' : ''
+    return str + trailing
+  }
+}
+FloatV.displayName = 'Float'
+
+class ComplexV {
+  constructor(value) {
+    this.value = value // Complex
+  }
+
+  toString() {
+    const re = this.value.re
+    const im = this.value.im
+    const reStr = _formatFloat(re) + (im < 0 ? '' : '+')
+    const imStr = im == 1 ? '' : im == -1 ? '-' : _formatFloat(im)
+    return (re === 0 ? '' : reStr) + imStr + 'i'
+  }
+}
+ComplexV.displayName = 'Complex'
+
+function BooleanV(value) {
   this.value = value
 }
 BooleanV.displayName = 'Boolean'
 
-function ListV (value) {
+function ListV(value) {
   this.value = value
 }
 ListV.displayName = 'List'
 
-function StringV (value) {
+function StringV(value) {
   this.value = value
 }
 StringV.displayName = 'String'
 
 class BytesV {
-  constructor (value) {
+  constructor(value) {
     this.value = value
     this.str = null
   }
 
-  formatByte (c) {
+  formatByte(c) {
     c = c.toString(16).toUpperCase()
     return '\\x' + ('0' + c).slice(-2)
   }
 
-  toString () {
+  toString() {
     if (!this.str) {
       const arr = Array.from(new Uint8Array(this.value))
       const formatted = arr.map(this.formatByte)
@@ -69,20 +108,20 @@ class BytesV {
 BytesV.displayName = 'Bytes'
 
 class DictV {
-  constructor (value) {
+  constructor(value) {
     this.value = value
     this._keys = null
     this._values = null
   }
 
-  keys () {
+  keys() {
     if (!this._keys) {
       this._keys = Object.keys(this.value).sort()
     }
     return this._keys
   }
 
-  values () {
+  values() {
     if (!this._values) {
       this._values = this._keys.map(k => this.value[k])
     }
@@ -91,38 +130,38 @@ class DictV {
 }
 DictV.displayName = 'Dict'
 
-function IOV (inst, argv) {
+function IOV(inst, argv) {
   this.inst = inst
   this.argv = argv
 }
 IOV.displayName = 'IO'
 
-function NilV () {
-}
+function NilV() {}
 NilV.displayName = 'Nil'
 
 var FUNCTION_ID_GEN = 0
 class FunctionV {
-  constructor (adj = '') {
+  constructor(adj = '') {
     this.id = FUNCTION_ID_GEN++
     this.str = '<' + adj + 'Function #' + this.id + '>'
   }
 
-  toString () {
+  toString() {
     return this.str
   }
 }
 FunctionV.displayName = 'Function'
 
 class ClosureV extends FunctionV {
-  constructor (body, env) {
+  constructor(body, env) {
     super()
     this.body = body
     this.env = env
-    this.str = ('<Closure #' + this.id + ' from depth ' + this.env.args.length + '>')
+    this.str =
+      '<Closure #' + this.id + ' from depth ' + this.env.args.length + '>'
   }
 
-  execute (argv) {
+  execute(argv) {
     const newArgs = this.env.args.concat([argv])
     const newEnv = new Env(this.env.funs, newArgs, this.env.utils)
     return new ExprV(this.body, newEnv, null)
@@ -130,24 +169,28 @@ class ClosureV extends FunctionV {
 }
 
 class BuiltinModuleV extends FunctionV {
-  constructor (module, name) {
+  constructor(module, name) {
     super()
     this.module = module
     this.str = '<Builtin Module ' + name + '>'
   }
 
-  execute (args) {
+  execute(args) {
     return this.module(args)
   }
 }
 
-function ExprV (expr, env, cache) {
+function ExprV(expr, env, cache) {
   this.expr = expr
   this.env = env
   this.cache = cache
 }
-const CallableV = [FunctionV, BooleanV, ListV, DictV, StringV, BytesV]
-const AnyV = [NumberV, IOV, NilV].concat(CallableV)
+
+const RealV = [IntegerV, FloatV]
+const NumberV = [ComplexV].concat(RealV)
+const SequenceV = [ListV, StringV, BytesV]
+const CallableV = [FunctionV, BooleanV, DictV, ComplexV].concat(SequenceV)
+const AnyV = [IOV, NilV].concat(CallableV, NumberV)
 
 export {
   Literal,
@@ -155,9 +198,10 @@ export {
   FunDef,
   ArgRef,
   FunCall,
-
   Env,
-  NumberV,
+  IntegerV,
+  FloatV,
+  ComplexV,
   BooleanV,
   ListV,
   DictV,
@@ -169,6 +213,9 @@ export {
   ClosureV,
   BuiltinModuleV,
   ExprV,
+  RealV,
+  NumberV,
+  SequenceV,
   CallableV,
   AnyV
 }

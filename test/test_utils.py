@@ -1,0 +1,58 @@
+from test.test_base import TestBase
+from pbhhg_py.abstract_syntax import *
+from pbhhg_py.utils import *
+from pbhhg_py.utils import _force_list
+
+
+class TestUtils(TestBase):
+    def test_all_equal(self):
+        self.assertTrue(all_equal([]))
+        self.assertTrue(all_equal([1]))
+        self.assertTrue(all_equal([1, 1]))
+        self.assertTrue(all_equal([1, 1.0]))
+        self.assertTrue(all_equal([1, 1.0, 1+0j]))
+        self.assertFalse(all_equal([1, 2]))
+        self.assertFalse(all_equal([1, '1']))
+
+    def test_force_list(self):
+        self.assertEqual(_force_list([1, 2]), [1, 2])
+        self.assertEqual(_force_list(3), [3])
+        self.assertEqual(_force_list(Number), [Number])
+        self.assertEqual(_force_list([Number, Boolean]), [Number, Boolean])
+
+    def test_is_type(self):
+        self.assertTrue(is_type([], Number))
+        self.assertTrue(is_type(Integer(3), Number))
+        self.assertFalse(is_type(Boolean(True), Number))
+        self.assertTrue(is_type(Boolean(True), Boolean))
+        self.assertTrue(is_type(Integer(3), (Number, Boolean)))
+        self.assertTrue(is_type(Integer(3), Any))
+        self.assertTrue(is_type([Integer(3), Float(1.0)], Number))
+        self.assertTrue(is_type([Integer(3), Complex(1j)], Number))
+        self.assertFalse(is_type([Integer(3), Complex(1j)], Real))
+
+    def test_is_same_type(self):
+        self.assertTrue(is_same_type([]))
+        self.assertTrue(is_same_type(Integer(3)))
+        self.assertTrue(is_same_type([Integer(3)]))
+        self.assertTrue(is_same_type([Integer(3), Integer(4)]))
+        self.assertFalse(is_same_type([Integer(3), Float(4.0)]))
+
+    def test_match_defaults(self):
+        self.assertEqual(match_defaults([], 0), [])
+        self.assertEqual(match_defaults([], 1, [1]), [1])
+        self.assertEqual(match_defaults([0], 1, [1]), [0])
+        self.assertEqual(match_defaults([], 2, [1, 2]), [1, 2])
+        self.assertEqual(match_defaults([0], 3, [1, 2]), [0, 1, 2])
+        self.assertEqual(match_defaults([0], 2, [1, 2]), [0, 2])
+        self.assertEqual(match_defaults([0, 1], 2, [1, 2]), [0, 1])
+
+    def test_guessed_wrap(self):
+        self.assertEqual(guessed_wrap(0), Integer(0))
+        self.assertEqual(guessed_wrap(0.0), Float(0.0))
+        self.assertEqual(guessed_wrap(0j), Complex(0j))
+        self.assertEqual(guessed_wrap(True), Boolean(True))
+        self.assertEqual(guessed_wrap(()), List(()))
+        self.assertEqual(guessed_wrap(''), String(''))
+        self.assertEqual(guessed_wrap(b''), Bytes(b''))
+        self.assertEqual(guessed_wrap({}), Dict({}))

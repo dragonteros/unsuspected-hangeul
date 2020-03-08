@@ -1,6 +1,4 @@
 import (조각글 절댓값 ㅂㅎㄷ)
-import (조각글 팔로나눈몫 ㅂㅎㄷ)
-import (조각글 팔로나눈나머지 ㅂㅎㄷ)
 import (조각글 표 ㅂㅎㄷ)
 
 [ def encode_number(number):
@@ -9,10 +7,10 @@ import (조각글 표 ㅂㅎㄷ)
     [ def to_oct(to_parse, parsed):
         ㄴㅇㄱ
 
-        ㄱㅇㄱ ㄴㅇㄴㄱㅎㄴ  # quotient..next to_parse
-        ㄱㅇㄱ ㄷㅇㄴㄱㅎㄴ  # remainder
+        ㄱㅇㄱ ㄱㄴㄱ ㄴㄴㅎㄷ  # quotient..next to_parse
+        ㄱㅇㄱ ㄱㄴㄱ ㄴㅁㅎㄷ  # remainder
         [ def _(remainder):
-            ㄴㅇㄴ (ㄱㅇㄱ ㄹㅇㄴㄱㅎㄴ) ㄷㅎㄷ  # next parsed
+            ㄴㅇㄴ (ㄱㅇㄱ ㄴㅇㄴㄱㅎㄴ) ㄷㅎㄷ  # next parsed
         ㅎ]
         ㅎㄴ
         ㄱㅇㅎㄷ
@@ -25,7 +23,7 @@ import (조각글 표 ㅂㅎㄷ)
         ㄱㅇㄱ
 
         '' ㅁㅈㅎㄱ
-        'ㄱ' ㄹㅇㄴㄱㅎㄴ
+        'ㄱ' ㄴㅇㄴㄱㅎㄴ
         is_negative = ㄱㅇㄴ ㄱ ㅈㅎㄷ
         is_even_lengthed = ㄴㄱ ㄱㅇㄱ ㅈㄷㅎㄴ ㅅㅎㄷ ㄴ ㄶㄷ
         ㄶㄷ
@@ -36,4 +34,4 @@ import (조각글 표 ㅂㅎㄷ)
     ㅎㄴ
 ㅎ]
 
-ㅎㅎㅁ  # /import
+ㅎㅎㄷ  # /import

@@ -2,8 +2,8 @@
 from pbhhg_py import builtins
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import encode_number
-from pbhhg_py.check import *
-from pbhhg_py.check import recursive_strict
+from pbhhg_py.utils import *
+from pbhhg_py.utils import recursive_strict
 
 
 def reg_if_eval_needed(value, cache_boxes, stack_of_cortns):
@@ -55,7 +55,7 @@ def interpret(value):
         return cache_box[0]
 
     if isinstance(expr, Literal):
-        return Number(expr.value)
+        return Integer(expr.value)
 
     elif isinstance(expr, FunRef):
         return env.funs[-expr.rel-1]
@@ -66,8 +66,8 @@ def interpret(value):
         args = env.args[-relF-1]
 
         relA = yield Expr(relA, env, [])
-        check_type(relA, Number)
-        relA = int(round(relA.value))
+        check_type(relA, Integer)
+        relA = relA.value
 
         if not 0 <= relA < len(args):
             raise ValueError(
@@ -126,20 +126,23 @@ def proc_functional(fun, allow=(), stricted=None):
             return fun.value[arg]
         return _proc_dict
 
+    elif isinstance(fun, Complex):
+        def _proc_complex(arguments):
+            [arg] = yield from match_arguments(arguments, Integer, 1)
+            num, idx = fun.value, arg.value
+            if idx in [0, 1]:
+                return Float(num.real if idx == 0 else num.imag)
+            raise ValueError(
+                'Expected 0 or 1 for argument but received {}'.format(idx))
+        return _proc_complex
+
     else:
         def _proc_seq(arguments):
-            check_arity(arguments, 1)
-            arg = yield arguments[0]
-            check_type(arg, Number)
+            [arg] = yield from match_arguments(arguments, Integer, 1)
             seq, idx = fun.value, arg.value
-            idx = int(round(idx))
-            item = seq[idx:idx+1] if isinstance(fun, Bytes) else seq[idx]
             if isinstance(fun, List):
-                return item
-            elif isinstance(fun, String):
-                return String(item)
-            elif isinstance(fun, Bytes):
-                return Bytes(item)
+                return seq[idx]
+            return guessed_wrap(seq[idx:][:1])
         return _proc_seq
 
 

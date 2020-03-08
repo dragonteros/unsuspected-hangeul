@@ -29,26 +29,39 @@ function recursiveMap(item, fn) {
   return item
 }
 
+function allEqual(arr) {
+  if (arr.length === 0) return true
+  return arr.every(function(a) {
+    return a === arr[0]
+  })
+}
+
 /* Argument constraint checkers */
 function _forceArray(condition) {
   return Array.isArray(condition) ? condition : [condition]
 }
 
 function isType(argv, desiredTypes) {
-  function matches(desiredType) {
-    return _forceArray(argv).every(function(arg) {
+  desiredTypes = _forceArray(desiredTypes)
+  function _matches(arg) {
+    return desiredTypes.some(function(desiredType) {
       return arg instanceof desiredType
     })
   }
-  return _forceArray(desiredTypes).some(matches)
+  return _forceArray(argv).every(_matches)
 }
 
-function _formatArray(arr) {
+function isSameType(argv) {
+  argv = _forceArray(argv)
+  return allEqual(argv.map(a => a.constructor))
+}
+
+function _formatArray(arr, conj = 'and') {
   if (arr.length < 2) return arr.toString()
   return arr
     .slice(0, -1)
     .join(', ')
-    .concat(' and ', arr[arr.length - 1])
+    .concat(' ', conj, ' ', arr[arr.length - 1])
 }
 
 function checkType(argv, desiredTypes) {
@@ -65,12 +78,22 @@ function checkType(argv, desiredTypes) {
   )
 }
 
+function checkSameType(argv) {
+  argv = _forceArray(argv)
+  if (isSameType(argv)) return
+  argTypeNames = argv.map(a => a.constructor.displayName)
+  throw TypeError(
+    'Expected arguments of the same type but received ' +
+      _formatArray(argTypeNames)
+  )
+}
+
 function checkArity(argv, desiredArities) {
   desiredArities = _forceArray(desiredArities)
   if (desiredArities.indexOf(argv.length) !== -1) return
   throw SyntaxError(
     'Expected ' +
-      _formatArray(desiredArities) +
+      _formatArray(desiredArities, 'or') +
       ' arguments but received ' +
       argv.length
   )
@@ -86,6 +109,29 @@ function checkMinArity(argv, minimumArity) {
   )
 }
 
+function checkMaxArity(argv, maximumArity) {
+  if (argv.length <= maximumArity) return
+  throw SyntaxError(
+    'Expected at most ' +
+      maximumArity +
+      ' arguments expected but received ' +
+      argv.length
+  )
+}
+
+function matchDefaults(argv, arity, defaults) {
+  if (defaults === undefined) {
+    defaults = []
+  }
+  checkMaxArity(argv, arity)
+  checkMinArity(argv, arity - defaults.length)
+  if (argv.length < arity) {
+    let deficiency = arity - argv.length
+    argv = argv.concat(defaults.slice(-deficiency))
+  }
+  return argv
+}
+
 /* Converts the value into string for hashing */
 function toString(value, strict, ioUtils, formatIO) {
   const _partial = v => toString(v, strict, ioUtils, formatIO)
@@ -96,8 +142,10 @@ function toString(value, strict, ioUtils, formatIO) {
     return formatIO ? 'IO(' + value + ')' : value
   }
 
-  if (value instanceof AS.NumberV) {
+  if (value instanceof AS.IntegerV) {
     return value.value.toString()
+  } else if (isType(value, AS.NumberV)) {
+    return value.toString()
   } else if (value instanceof AS.BooleanV) {
     return value.value ? 'True' : 'False'
   } else if (value instanceof AS.StringV) {
@@ -124,9 +172,14 @@ export {
   extractValue,
   chooseConstructorLike,
   recursiveMap,
+  allEqual,
   isType,
+  isSameType,
   checkType,
+  checkSameType,
   checkArity,
   checkMinArity,
+  checkMaxArity,
+  matchDefaults,
   toString
 }

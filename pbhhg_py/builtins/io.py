@@ -1,5 +1,5 @@
 from pbhhg_py.abstract_syntax import *
-from pbhhg_py.check import *
+from pbhhg_py.utils import *
 
 
 def build_tbl(proc_functional):
@@ -9,10 +9,7 @@ def build_tbl(proc_functional):
         yield
 
     def _print(argv):
-        check_arity(argv, 1)
-        arg = yield argv[0]
-        argv = [arg]
-        check_type(argv, String)
+        argv = yield from match_arguments(argv, String, 1)
         return IO('ㅈㄹ', tuple(argv))
 
     def _return(argv):

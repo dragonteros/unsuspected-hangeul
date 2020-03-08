@@ -1,69 +1,103 @@
 import BigInteger from 'big-integer'
+import Complex from 'complex.js'
 
 import * as AS from '../abstractSyntax.js'
-import { checkArity, checkType, checkMinArity, isType, extractValue } from '../utils.js'
+import {
+  checkArity,
+  checkType,
+  checkMinArity,
+  isType,
+  extractValue,
+  checkSameType
+} from '../utils.js'
+import { add, mul, div, mod, pow } from '../numbers.js'
 
-export default function (procFunctional, strict) {
-  function _multiply (argv) {
+function _joinArrayBuffer(bufs) {
+  const size = bufs.map(a => a.byteLength).reduce((a, b) => a + b, 0)
+  const newBuf = new ArrayBuffer(size)
+  const view = new Uint8Array(newBuf)
+  bufs.reduce(function(idx, buf) {
+    view.set(new Uint8Array(buf), idx)
+    return idx + buf.byteLength
+  }, 0)
+  return newBuf
+}
+
+export function wrapNumber(num) {
+  if (num instanceof BigInteger) return new AS.IntegerV(num)
+  if (num instanceof Complex) return new AS.ComplexV(num)
+  if (typeof num === 'number') return new AS.FloatV(num)
+  return null
+}
+
+export default function(procFunctional, strict) {
+  function _multiply(argv) {
     checkMinArity(argv, 1)
     argv = argv.map(strict)
-    checkType(argv, [AS.NumberV, AS.BooleanV])
-    if (isType(argv, AS.BooleanV)) {
-      return new AS.BooleanV(argv.every(extractValue))
-    } else {
-      return new AS.NumberV(argv.map(extractValue).reduce(
-        function (a, b) {
-          return isType([a, b], BigInteger) ? a.times(b) : a * b
-        }, BigInteger.one))
+    checkType(argv, [AS.BooleanV].concat(AS.NumberV))
+    if (isType(argv, AS.NumberV)) {
+      return wrapNumber(argv.map(extractValue).reduce(mul))
     }
+    checkSameType(argv)
+    return new AS.BooleanV(argv.every(extractValue))
   }
-  function _add (argv) {
+
+  function _add(argv) {
     checkMinArity(argv, 1)
     argv = argv.map(strict)
-    checkType(argv, [AS.NumberV, AS.BooleanV, AS.ListV, AS.StringV, AS.BytesV, AS.DictV])
+    checkType(argv, [AS.BooleanV, AS.DictV].concat(AS.NumberV, AS.SequenceV))
+    const extracted = argv.map(extractValue)
+    if (isType(argv, AS.NumberV)) {
+      return wrapNumber(extracted.reduce(add))
+    }
+    checkSameType(argv)
     if (isType(argv, AS.BooleanV)) {
-      return new AS.BooleanV(argv.some(extractValue))
+      return new AS.BooleanV(extracted.some(x => x))
     } else if (isType(argv, AS.StringV)) {
-      return new AS.StringV(argv.map(extractValue).join(''))
+      return new AS.StringV(extracted.join(''))
     } else if (isType(argv, AS.BytesV)) {
-      argv = argv.map(extractValue)
-      const size = argv.map(a => a.byteLength).reduce((a, b) => a + b, 0)
-      const newBuf = new ArrayBuffer(size)
-      const view = new Uint8Array(newBuf)
-      argv.reduce(function (idx, buf) {
-        view.set(new Uint8Array(buf), idx)
-        return idx + buf.byteLength
-      }, 0)
-      return new AS.BytesV(newBuf)
+      return new AS.BytesV(_joinArrayBuffer(extracted))
     } else if (isType(argv, AS.ListV)) {
-      return new AS.ListV(argv.map(extractValue).reduce(
-        function (a, b) { return a.concat(b) }, []))
+      return new AS.ListV(extracted.reduce((a, b) => a.concat(b)))
     } else if (isType(argv, AS.DictV)) {
       var result = {}
-      argv.forEach(d => Object.assign(result, d.value))
+      extracted.forEach(d => Object.assign(result, d))
       return new AS.DictV(result)
-    } else {
-      return new AS.NumberV(argv.map(extractValue).reduce(
-        function (a, b) {
-          return isType([a, b], BigInteger) ? a.plus(b) : a + b
-        }, BigInteger.zero))
     }
   }
-  function _exponentiate (argv) {
-    checkArity(argv, 2)
+
+  function _exponentiate(argv) {
+    checkArity(argv, [2, 3])
     argv = argv.map(strict)
     checkType(argv, AS.NumberV)
-    if (isType(argv, BigInteger)) {
-      var power = argv[0].value.pow(argv[1].value)
-    } else {
-      var power = Math.pow(argv[0].value, argv[1].value)
+    if (argv.length === 3) {
+      checkType(argv, AS.IntegerV)
+      argv = argv.map(extractValue)
+      return new AS.IntegerV(argv[0].modPow(argv[1], argv[2]))
     }
-    return new AS.NumberV(power)
+    checkArity(argv, 2)
+    return wrapNumber(pow(argv[0].value, argv[1].value))
+  }
+
+  function _integerDivision(argv) {
+    checkArity(argv, 2)
+    argv = argv.map(strict)
+    checkType(argv, AS.RealV)
+    return wrapNumber(div(argv[0].value, argv[1].value))
+  }
+
+  function _remainder(argv) {
+    checkArity(argv, 2)
+    argv = argv.map(strict)
+    checkType(argv, AS.RealV)
+    return wrapNumber(mod(argv[0].value, argv[1].value))
   }
 
   return {
     ㄱ: _multiply,
     ㄷ: _add,
-    ㅅ: _exponentiate
+    ㅅ: _exponentiate,
+    ㄴㄴ: _integerDivision,
+    ㄴㅁ: _remainder
   }
 }

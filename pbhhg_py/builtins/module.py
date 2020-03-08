@@ -1,7 +1,7 @@
 import os
 
 from pbhhg_py.abstract_syntax import *
-from pbhhg_py import check
+from pbhhg_py import utils
 from pbhhg_py import modules
 from pbhhg_py import parse
 
@@ -18,7 +18,7 @@ class BuiltinModule(Function):
         return (yield from self.module(args))
 
 
-BUITLIN_MODULE_REGISTRY = {}
+BUITLIN_MODULE_REGISTRY = Dict({})
 MODULE_REGISTRY = {}
 
 
@@ -58,11 +58,11 @@ def load_from_literal(literals):
     errmsg = 'No module found under literal sequence {}.'.format(name)
     # Search builtins
     if literals[0] == 5:
-        module = BUITLIN_MODULE_REGISTRY[Number(5)]
+        module = BUITLIN_MODULE_REGISTRY
         for idx in literals[1:]:
             if not isinstance(module, Dict):
                 raise ImportError(errmsg)
-            module = module.value[Number(idx)]
+            module = module.value[Integer(idx)]
         return module
 
     # Search files
@@ -99,7 +99,7 @@ def matches_literal(string, literal):
     string = parse.normalize(string)
     try:
         parsed_literal = parse.parse_number(string)
-    except:
+    except ValueError:
         return False
     return literal == parsed_literal
 
@@ -108,39 +108,43 @@ def is_literal_expr(expr):
     return isinstance(expr, Expr) and isinstance(expr.expr, Literal)
 
 
-def construct_builtin_module(keys, data):
-    _key = Number(parse.parse_number(keys[-1]))
+def construct_builtin_module(data, keys):
+    """Recursively iterates over dict to convert python values
+    to pbhhg values and wrap functions in BuiltinModule."""
     if isinstance(data, dict):
-        _value = Dict(dict(construct_builtin_module(
-            keys + [k], data[k]) for k in data))
+        data = {Integer(parse.parse_number(k)):
+                construct_builtin_module(d, keys + [k])
+                for k, d in data.items()}
+        return Dict(data)
+    elif callable(data):
+        return BuiltinModule(data, keys)
     else:
-        _value = BuiltinModule(data, keys)
-    return _key, _value
+        return utils.guessed_wrap(data)
 
 
 def build_tbl(proc_functional):
     def _register_builtin_module(name):
+        """Builds a Dict based on the table from module `name`."""
         module = __import__('pbhhg_py.modules.' + name, fromlist=[name])
-        _key, data = module.build_tbl(proc_functional)
-        return construct_builtin_module([_key], data)
+        data = module.build_tbl(proc_functional)  # dict
+        return construct_builtin_module(data, ['ㅂ'])  # Dict
 
     def _import(argv):
-        check.check_min_arity(argv, 1)
+        utils.check_min_arity(argv, 1)
         if all(is_literal_expr(arg) for arg in argv):
             literals = [arg.expr.value for arg in argv]
             module = yield from load_from_literal(literals)
             return module
 
-        check.check_arity(argv, 1)
+        utils.check_arity(argv, 1)
         filepath = yield argv[0]
-        check.check_type(filepath, String)
+        utils.check_type(filepath, String)
         module = yield from load_from_path(filepath.value)
         return module
 
-    BUITLIN_MODULE_REGISTRY.update(
-        _register_builtin_module(name)
-        for name in modules.__all__
-    )
+    for name in modules.__all__:
+        module = _register_builtin_module(name)  # Dict
+        BUITLIN_MODULE_REGISTRY.value.update(module.value)
 
     return {
         'ㅂ': _import,  # 불러오기

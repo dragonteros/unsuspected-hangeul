@@ -16,7 +16,7 @@ class TestIO(TestBase):
         _test('ㅀㄱ ㅈㄹ ㄱㅀㄷ', "Nil", '\n', '')
         _test('ㅀㄱ ㅈㄹ ㄱㅀㄷ', "Nil", '하늘', '하늘')
         _test('ㅀㄱ ㄱㅇㄱ ㅅㅅㅎㄴ ㄴㄱ ㅅㅎㄷ ㅁㅈㅎㄴ ㅈㅀㄶ ㄱㅀㄷ', "Nil", '5', '0.2')
-        _test('ㅀㄱ ㄱㅇㄱ ㅅㅅㅎㄴ ㄴㄱ ㅅㅎㄷ ㅁㅈㅎㄴ ㅈㅀㄶ ㄱㅀㄷ', "Nil", '-1', '-1')
+        _test('ㅀㄱ ㄱㅇㄱ ㅅㅅㅎㄴ ㄴㄱ ㅅㅎㄷ ㅁㅈㅎㄴ ㅈㅀㄶ ㄱㅀㄷ', "Nil", '-1', '-1.0')
 
     def test_return(self):
         _test = self._assert_execute

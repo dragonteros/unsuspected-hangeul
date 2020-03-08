@@ -1,26 +1,20 @@
 from pbhhg_py.abstract_syntax import *
-from pbhhg_py.check import *
-
-Sequence = (List, String, Bytes)
+from pbhhg_py.utils import *
 
 
 def build_tbl(proc_functional):
     def _len(argv):
-        check_arity(argv, 1)
-        seq = yield argv[0]
-        check_type(seq, Sequence)
-        return Number(len(seq.value))
+        [seq] = yield from match_arguments(argv, Sequence, 1)
+        return Integer(len(seq.value))
 
     def _slice(argv):
         check_arity(argv, [2, 3, 4])
         argv = yield from [(yield arg) for arg in argv]
         check_type(argv[0], Sequence)
-        check_type(argv[1:], Number)
+        check_type(argv[1:], Integer)
 
-        seq = argv[0].value
-        start = int(round(argv[1].value))
-        end = int(round(argv[2].value)) if len(argv) > 2 else len(seq)
-        step = int(round(argv[3].value)) if len(argv) > 3 else 1
+        seq, *rest = [arg.value for arg in argv]
+        start, end, step = match_defaults(rest, 3, [len(seq), 1])
         result = seq[start:end:step]
         if isinstance(argv[0], List):
             return List(result)

@@ -1,5 +1,5 @@
 from pbhhg_py.abstract_syntax import *
-from pbhhg_py.check import *
+from pbhhg_py.utils import *
 
 
 class Pipe(Function):

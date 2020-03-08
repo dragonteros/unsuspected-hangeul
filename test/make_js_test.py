@@ -39,7 +39,7 @@ if __name__ == '__main__':
              'test/test_modules/test_*.py']
     tests = [files for fpath in tests for files in glob(fpath)]
     for path in tests:
-        if 'test_base.py' in path or 'test_check.py' in path:
+        if 'test_base.py' in path or 'test_utils.py' in path:
             continue
         print(path)
         with open(path, 'r') as reader:

@@ -10,7 +10,7 @@ import {
 import { encodeNumber } from './parse.js'
 
 import buildArithmetics from './builtins/arithmetics.js'
-import buildconstructors from './builtins/constructors.js'
+import buildConstructors from './builtins/constructors.js'
 import buildFunctional from './builtins/functional.js'
 import buildIO from './builtins/io.js'
 import buildLogic from './builtins/logic.js'
@@ -20,7 +20,7 @@ import buildString from './builtins/string.js'
 
 const BUILTINS = [
   buildArithmetics,
-  buildconstructors,
+  buildConstructors,
   buildFunctional,
   buildIO,
   buildLogic,
@@ -65,7 +65,7 @@ function _accessBuffer (buf, rel) {
  * returns a value */
 function interpret (expr, env) {
   if (expr instanceof AS.Literal) {
-    return new AS.NumberV(expr.value)
+    return new AS.IntegerV(expr.value)
   } else if (expr instanceof AS.FunRef) {
     return _accessArray(env.funs, -expr.rel - 1)
   } else if (expr instanceof AS.ArgRef) {
@@ -80,9 +80,9 @@ function interpret (expr, env) {
     }
     var args = _accessArray(env.args, -expr.relF - 1)
     var relA = strict(interpret(expr.relA, env))
-    checkType(relA, AS.NumberV)
-    relA = Math.round(relA.value)
-    if (relA < 0 || relA >= args.length) {
+    checkType(relA, AS.IntegerV)
+    relA = relA.value
+    if (relA.lt(0) || relA.geq(args.length)) {
       throw EvalError(
         'Out of Range: ' +
         args.length +
@@ -140,13 +140,23 @@ function procFunctional (fun, allow, stricted) {
       if (value) return value
       throw EvalError('Key Error: dict ' + fun.value + ' has no key ' + arg)
     }
+  } else if (fun instanceof AS.ComplexV) {
+    return function (argv) {
+      checkArity(argv, 1)
+      const arg = strict(argv[0])
+      checkType(arg, AS.IntegerV)
+      if (arg.value == 0 || arg.value == 1) {
+        return new AS.FloatV(fun.value.toVector()[arg.value])
+      }
+      throw EvalError('Expected 0 or 1 for argument but received ' + arg.value)
+    }
   } else {
     const _access = fun instanceof AS.BytesV? _accessBuffer: _accessArray
     return function (argv) {
       checkArity(argv, 1)
       const arg = strict(argv[0])
-      checkType(arg, AS.NumberV)
-      const idx = Math.round(arg.value)
+      checkType(arg, AS.IntegerV)
+      const idx = arg.value
       var item = _access(fun.value, idx)
       const V = chooseConstructorLike(fun, [AS.StringV, AS.BytesV])
       if (V) item = new V(item)
