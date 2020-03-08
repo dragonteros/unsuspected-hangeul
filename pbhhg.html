@@ -52,7 +52,7 @@
       output.innerHTML = '결과 (객체 0개):'
     }
     function run() {
-      // try {
+      try {
         var result = exports.main(code.value, ioUtils, loadUtils)
         var counter = result.length
         if (counter >= 2) {
@@ -61,9 +61,9 @@
           counter = "(객체 " + counter + "개)"
         }
         result = '결과 ' + counter + ': ' + escapeBracket(result.join(' '))
-      // } catch (error) {
-      //   result = '문제가 생겼습니다. ' + error
-      // }
+      } catch (error) {
+        result = '문제가 생겼습니다. ' + error
+      }
       output.innerHTML = result
     }
     code.addEventListener('keydown', function (e) {
