@@ -1,0 +1,17 @@
+[ def quick_sort (arr):
+  # if len(arr) > 0:
+    ㄱ ㄱㅇㄱㅎㄴ  # pivot = arr[0]
+    ㄱㅇㄱ ㄴ ㅂㅈㅎㄷ  # slice = arr[1:]
+    [ def _(pivot, slice):
+      # [x for x in slice if x < pivot]
+      ㄴㅇㄱ (ㄱㅇㄱ ㄱㅇㄴ ㅈㅎㄷㅎ)ㅅㅂㅎㄷ
+      # [pivot]
+      ㄱㅇㄱ ㅁㄹㅎㄴ
+      # [x for x in slice if x >= pivot]
+      ㄴㅇㄱ (ㄱㅇㄱ ㄱㅇㄴ ㅈㅎㄷ ㅁㅎㄴㅎ)ㅅㅂㅎㄷ
+      ㄷㅎㄹ  # return [..]+[..]+[..]
+    ㅎ] ㅎㄷ  # return _(pivot, slice)
+  # else:
+    ㄱㅇㄱ  # return arr
+  (ㄱ ㄱㅇㄱ ㅈㄷㅎㄴ ㅈㅎㄷ)ㅎㄷ  # endif
+ㅎ]
