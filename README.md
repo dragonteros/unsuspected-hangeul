@@ -142,3 +142,4 @@
 ## ㅂ. 함께 보기
 
 * [평범한 한글 배우기 by @andrea9292](https://www.notion.so/e75c59b8c4514f87822011f2f08715c6)
+* [평범한 한글 vim 개발 환경](https://github.com/dragonteros/unsuspected-hangeul-vim)
