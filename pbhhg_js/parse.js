@@ -54,7 +54,7 @@ function normalizeChar (c) {
     return ''
   } else if (c >= '\uD7CB' && c <= '\uD7FB') {
     return ''
-  } else if (c >= '\uFFA1' && c <= '\uFFBE') {
+  } else if (c >= '\uFFA0' && c <= '\uFFBE') {
     return _get(JAMO, '\uFFA1')
   } else if ('ￂￃￄￅￆￇￊￋￌￍￎￏￒￓￔￕￖￗￚￛￜ'.indexOf(c) >= 0) {
     return ''
