@@ -26,7 +26,7 @@ def build_tbl(proc_functional):
         return True
 
     def _equals(argv):
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from map_strict(argv)
         if is_type(argv, Number):
             return Boolean(all_equal(argv))
         if is_type(argv, List):

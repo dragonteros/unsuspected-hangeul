@@ -25,7 +25,7 @@ class Codec(AS.Function):
             self.scheme, self.num_bytes, self.big_endian)
 
     def __call__(self, argv):
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from utils.map_strict(argv)
         return self._codec(*argv)
 
     def _get_codec(self):
@@ -62,7 +62,7 @@ class Codec(AS.Function):
 def build_tbl(proc_functional):
     def _codec(argv):
         utils.check_arity(argv, [2, 3])
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from utils.map_strict(argv)
         return Codec(*argv)
 
     return {'ㅂ': _codec}  # 바꾸기

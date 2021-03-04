@@ -14,7 +14,7 @@ import sys
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import parse
 from pbhhg_py.interpret import proc_functional, evaluate
-from pbhhg_py.utils import check_type
+from pbhhg_py.utils import check_type, map_strict
 
 
 def _do_single_IO(io_value):
@@ -30,9 +30,9 @@ def _do_single_IO(io_value):
         return (yield argv[0])
     if inst == 'ㄱㄹ':  # bind
         *arguments, binder = argv
-        arguments = yield from [(yield arg) for arg in arguments]
+        arguments = yield from map_strict(arguments)
         check_type(arguments, IO)
-        arguments = yield from [(yield from do_IO(arg)) for arg in arguments]
+        arguments = yield from map_strict(arguments, do_IO)
         _fn = yield from proc_functional(binder)
         result = yield (yield from _fn(arguments))
         check_type(result, IO)
@@ -56,6 +56,7 @@ def formatter(value, format_io=True):
         arg = yield from formatter(arg)
         return _format.format(arg)
 
+    _formatter = lambda x: formatter(x, format_io)
     if isinstance(value, Real):
         return str(value.value)
     if isinstance(value, Complex):
@@ -68,12 +69,15 @@ def formatter(value, format_io=True):
         arg = ''.join(r'\x{:02X}'.format(b) for b in value.value)
         return "b'{}'".format(arg)
     if isinstance(value, List):
-        arg = yield from [(yield from formatter(item, format_io)) for item in value.value]
+        arg = yield from map_strict(value.value, _formatter)
         return '[{}]'.format(', '.join(arg))
     if isinstance(value, Dict):
-        d = value.value
-        d = yield from [((yield from formatter(k, format_io)),
-                         (yield from formatter(d[k], format_io))) for k in d]
+        if not value.value:
+            return '{}'
+        keys, values = zip(*value.value.items())
+        keys = yield from map_strict(keys, _formatter)
+        values = yield from map_strict(values, _formatter)
+        d = list(zip(keys, values))
         d = sorted(d, key=lambda pair: pair[0])
         d = ', '.join("{}: {}".format(k, v) for k, v in d)
         return '{' + d + '}'

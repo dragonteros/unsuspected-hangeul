@@ -41,7 +41,7 @@ def build_tbl(proc_functional):
         return proc_functional(fun, allow=Callable)
 
     def _pipe(funs):
-        funs = yield from [(yield from _proc(fun)) for fun in funs]
+        funs = yield from map_strict(funs, _proc)
         return Pipe(funs)
 
     def _collect(funs):

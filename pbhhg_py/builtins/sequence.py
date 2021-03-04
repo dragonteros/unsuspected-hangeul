@@ -9,7 +9,7 @@ def build_tbl(proc_functional):
 
     def _slice(argv):
         check_arity(argv, [2, 3, 4])
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from map_strict(argv)
         check_type(argv[0], Sequence)
         check_type(argv[1:], Integer)
 
@@ -28,7 +28,7 @@ def build_tbl(proc_functional):
         seq = yield argv[0]
         check_type(seq, List)  # ?
         _fn = yield from proc_functional(argv[1])
-        value = yield from [(yield from _fn([arg])) for arg in seq.value]
+        value = yield from map_strict(seq.value, lambda x: _fn([x]))
         return List(value)
 
     def _filter(argv):  # maybe lazy later?
@@ -36,7 +36,8 @@ def build_tbl(proc_functional):
         seq = yield argv[0]
         check_type(seq, List)  # ?
         _fn = yield from proc_functional(argv[1])
-        fit_check = yield from [(yield (yield from _fn([arg]))) for arg in seq.value]
+        fit_check = yield from map_strict(seq.value, lambda x: _fn([x]))
+        fit_check = yield from map_strict(fit_check)
         check_type(fit_check, Boolean)
         zipped = zip(seq.value, fit_check)
         return List(tuple(arg for arg, fits in zipped if fits.value))
@@ -49,7 +50,7 @@ def build_tbl(proc_functional):
             argv = [x, y]
 
         preserved_argv = argv
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from map_strict(argv)
         from_right = is_type(argv[0], List)
         maybe_reversed = reversed if from_right else lambda x: x
 

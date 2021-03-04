@@ -3,7 +3,7 @@ from pbhhg_py import builtins
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import encode_number
 from pbhhg_py.utils import *
-from pbhhg_py.utils import recursive_strict
+from pbhhg_py.utils import map_strict, recursive_strict
 
 
 def reg_if_eval_needed(value, cache_boxes, stack_of_cortns):

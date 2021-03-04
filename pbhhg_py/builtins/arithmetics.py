@@ -31,7 +31,7 @@ def _modular_inverse(a, mod):
 def build_tbl(proc_functional):
     def _multiply(argv):
         check_min_arity(argv, 1)
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from map_strict(argv)
         check_type(argv, (Number, Boolean))
         if is_type(argv, Number):
             argv = (arg.value for arg in argv)
@@ -42,7 +42,7 @@ def build_tbl(proc_functional):
 
     def _add(argv):
         check_min_arity(argv, 1)
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from map_strict(argv)
         check_type(argv, (Number, Boolean, Sequence, Dict))
         if is_type(argv, Number):
             return guessed_wrap(sum(a.value for a in argv))

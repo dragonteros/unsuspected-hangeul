@@ -16,7 +16,7 @@ def build_tbl(proc_functional):
             raise ValueError('Dict requires even number of arguments '
                              'but received: {}'.format(len(argv)))
         keys, values = argv[0::2], argv[1::2]
-        keys = yield from [(yield from recursive_strict(k)) for k in keys]
+        keys = yield from map_strict(keys, recursive_strict)
         return Dict({k: v for k, v in zip(keys, values)})
 
     def _list(argv):

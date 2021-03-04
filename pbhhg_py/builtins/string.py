@@ -5,7 +5,7 @@ from pbhhg_py.utils import *
 def build_tbl(proc_functional):
     def _split(argv):
         check_arity(argv, [1, 2])
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from map_strict(argv)
         check_type(argv, String)
         src, delimiter = (argv + [String('')])[:2]
         if delimiter.value:
@@ -16,11 +16,11 @@ def build_tbl(proc_functional):
 
     def _join(argv):
         check_arity(argv, [1, 2])
-        argv = yield from [(yield arg) for arg in argv]
+        argv = yield from map_strict(argv)
         seq, delimiter = (argv + [String('')])[:2]
         check_type(seq, List)
         check_type(delimiter, String)
-        pieces = yield from [(yield arg) for arg in seq.value]
+        pieces = yield from map_strict(seq.value)
         check_type(pieces, String)
         return String(delimiter.value.join(piece.value for piece in pieces))
 

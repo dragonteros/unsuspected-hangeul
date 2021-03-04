@@ -34,7 +34,7 @@ def load_from_path(filepath):
     if module is not None:
         return module
 
-    with open(filepath, 'r') as reader:
+    with open(filepath, 'r', encoding='utf-8') as reader:
         program = reader.read()
     exprs = parse.parse(program)
     if len(exprs) != 1:

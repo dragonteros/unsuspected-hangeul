@@ -3,15 +3,29 @@
 from pbhhg_py import abstract_syntax as AS
 
 
+def map_strict(seq, generator=None):
+    result = []
+    for item in seq:
+        if generator is None:
+            item = yield item
+        else:
+            item = yield from generator(item)
+        result.append(item)
+    return result
+
+
 def recursive_strict(item):
     item = yield item
     if isinstance(item, AS.List):
         v = item.value
-        v = yield from [(yield from recursive_strict(a)) for a in v]
+        v = yield from map_strict(v, recursive_strict)
         return AS.List(tuple(v))
     elif isinstance(item, AS.Dict):
-        d = item.value
-        d = yield from {k: (yield from recursive_strict(d[k])) for k in d}
+        if not item.value:
+            return AS.Dict({})
+        keys, values = zip(*item.value.items())
+        values = yield from map_strict(values, recursive_strict)
+        d = dict(zip(keys, values))
         return AS.Dict(d)
     return item
 
@@ -97,7 +111,7 @@ def match_arguments(argv, types, arities=None, min_arity=0):
         check_arity(argv, arities)
     if min_arity:
         check_min_arity(argv, min_arity)
-    argv = yield from [(yield arg) for arg in argv]
+    argv = yield from map_strict(argv)
     check_type(argv, types)
     return argv
 
