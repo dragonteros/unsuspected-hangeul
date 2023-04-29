@@ -1,19 +1,7 @@
-import BigInteger from 'big-integer'
-
 import * as AS from './abstractSyntax.js'
-import {
-  isType,
-  checkType,
-  toString
-} from './utils.js'
-import {
-  strict,
-  interpret,
-  procFunctional
-} from './interpret.js'
-import {
-  parse
-} from './parse.js'
+import { interpret, procFunctional, strict } from './interpret.js'
+import { parse } from './parse.js'
+import { checkType, toString } from './utils.js'
 
 /* Receives an IOV and produces non-ExprV value. */
 function _doSingleIO(ioValue, ioUtils) {
@@ -22,7 +10,8 @@ function _doSingleIO(ioValue, ioUtils) {
   var argv = ioValue.argv
   switch (inst) {
     case 'ㄹ':
-      return new AS.StringV(ioUtils.input())
+      var input = ioUtils.input()
+      return input == null ? new AS.NilV() : new AS.StringV(input)
     case 'ㅈㄹ':
       ioUtils.print(argv[0].value)
       return new AS.NilV()

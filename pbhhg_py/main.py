@@ -22,7 +22,10 @@ def _do_single_IO(io_value):
     check_type(io_value, IO)
     inst, argv = io_value
     if inst == 'ㄹ':  # read string
-        return String(input(''))
+        try:
+            return String(input(''))
+        except EOFError:
+            return Nil()
     if inst == 'ㅈㄹ':  # write
         print(argv[0].value, flush=True)
         return Nil()
