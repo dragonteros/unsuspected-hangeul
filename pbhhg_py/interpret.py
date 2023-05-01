@@ -1,46 +1,82 @@
+from typing import NamedTuple
 
 from pbhhg_py import builtins
 from pbhhg_py.abstract_syntax import *
 from pbhhg_py.parse import encode_number
-from pbhhg_py.utils import *
-from pbhhg_py.utils import map_strict, recursive_strict
+from pbhhg_py import utils, error
 
 
-def reg_if_eval_needed(value, cache_boxes, stack_of_cortns):
-    if not isinstance(value, Expr):
-        return value
-    if value.cache_box:
-        return value.cache_box[0]
-    cache_boxes += [value.cache_box]
-    stack_of_cortns.append((interpret(value), cache_boxes))
-    return None
+class ComputationRequest(NamedTuple):
+    request: Expr
 
 
-def evaluate(coroutine):
+class Computation:
+
+    def __init__(self, coroutine: utils.Coroutine):
+        self.coroutine = coroutine
+        self._last_request: Expr | None = None
+
+    def communicate(
+        self,
+        response: UnsuspectedHangeulStrictValue
+        | error.UnsuspectedHangeulError | None,
+    ) -> (ComputationRequest | UnsuspectedHangeulValue |
+          error.UnsuspectedHangeulError):
+        if self._last_request is not None and not self._last_request.cache_box:
+            self._last_request.cache_box.append(response)
+
+        assert not isinstance(response, Expr)
+        try:
+            while True:
+                if isinstance(response, error.UnsuspectedHangeulError):
+                    request = self.coroutine.throw(response)
+                else:
+                    request = self.coroutine.send(response)
+
+                if isinstance(request, Expr):
+                    if not request.cache_box:
+                        self._last_request = request
+                        return ComputationRequest(request)
+                    request = request.cache_box[0]
+                response = request
+
+        except StopIteration as result:
+            return_value: UnsuspectedHangeulValue = result.value
+            return return_value
+        except error.UnsuspectedHangeulError as e:
+            return e
+
+
+def evaluate(coroutine: utils.Coroutine):
     '''Executes coroutine and provides strictly evaluated values
        as it requests.'''
     MAX_STACK_SIZE = 5000
-    value = None
-    stack_of_cortns = [(coroutine, [])]
+    return_value_or_error = None
+    stack_of_cortns = [Computation(coroutine)]
+
     while stack_of_cortns:
         if len(stack_of_cortns) > MAX_STACK_SIZE:
             raise RuntimeError('Maximum Stack Size Exceeded.')
-        coroutine, cache_boxes = stack_of_cortns[-1]
-        try:
-            value = coroutine.send(value)
-            value = reg_if_eval_needed(value, [], stack_of_cortns)
-        except StopIteration as result:
+        computation = stack_of_cortns[-1]
+        request_or_result = computation.communicate(return_value_or_error)
+
+        if isinstance(request_or_result, ComputationRequest):
+            new_computation = Computation(interpret(request_or_result.request))
+            stack_of_cortns.append(new_computation)
+            return_value_or_error = None
+        else:
             stack_of_cortns.pop()
-            value = result.value
-            value = reg_if_eval_needed(value, cache_boxes, stack_of_cortns)
-            if value:
-                while cache_boxes:  # This might affect performance..
-                    cache_boxes.pop().append(value)
+            if isinstance(request_or_result, Expr):
+                new_computation = Computation(interpret(request_or_result))
+                stack_of_cortns.append(new_computation)
+                return_value_or_error = None
+            else:
+                return_value_or_error = request_or_result
 
-    return value
+    return return_value_or_error
 
 
-def interpret(value):
+def interpret(value: Expr) -> utils.Coroutine:
     '''Interpreter coroutine.
     Args:
         value: an Expr value to interpret
@@ -58,15 +94,15 @@ def interpret(value):
         return Integer(expr.value)
 
     elif isinstance(expr, FunRef):
-        return env.funs[-expr.rel-1]
+        return env.funs[-expr.rel - 1]
 
     elif isinstance(expr, ArgRef):
         assert len(env.funs) == len(env.args)
         relA, relF = expr
-        args = env.args[-relF-1]
+        args = env.args[-relF - 1]
 
         relA = yield Expr(relA, env, [])
-        check_type(relA, Integer)
+        utils.check_type(relA, Integer)
         relA = relA.value
 
         if not 0 <= relA < len(args):
@@ -93,11 +129,15 @@ def interpret(value):
     raise ValueError('Unexpected expression: {}'.format(expr))
 
 
-def proc_functional(fun, allow=(), stricted=None):
+def proc_functional(
+    fun: UnsuspectedHangeulValue,
+    allow: type[Any] | None = None,
+    stricted: UnsuspectedHangeulStrictValue | None = None,
+):
     """
     Args:
         fun: A maybe-Expr value that may correspond to a function.
-        allow: A list of types that are allowed for execution.
+        allow: Union of types that are allowed for execution.
         stricted: Cached strict value of fun
     Returns:
         A generator that receives argument list and returns maybe-Expr value.
@@ -106,47 +146,55 @@ def proc_functional(fun, allow=(), stricted=None):
         return find_builtin(fun.expr.value)
 
     fun = stricted or (yield fun)
-    allowed_by_default = (Function, )
-    check_type(fun, tuple(allow) + allowed_by_default)
+    allow = Function if allow is None else Function | allow
+    utils.check_type(fun, allow)
 
     if isinstance(fun, Function):
         return fun
 
     elif isinstance(fun, Boolean):
+
         def _proc_boolean(arguments):
-            check_arity(arguments, 2)
+            utils.check_arity(arguments, 2)
             return arguments[0 if fun.value else 1]
             yield
+
         return _proc_boolean
 
     elif isinstance(fun, Dict):
+
         def _proc_dict(arguments):
-            check_arity(arguments, 1)
-            arg = yield from recursive_strict(arguments[0])
+            utils.check_arity(arguments, 1)
+            arg = yield from utils.recursive_strict(arguments[0])
             return fun.value[arg]
+
         return _proc_dict
 
     elif isinstance(fun, Complex):
+
         def _proc_complex(arguments):
-            [arg] = yield from match_arguments(arguments, Integer, 1)
+            [arg] = yield from utils.match_arguments(arguments, Integer, 1)
             num, idx = fun.value, arg.value
             if idx in [0, 1]:
                 return Float(num.real if idx == 0 else num.imag)
             raise ValueError(
                 'Expected 0 or 1 for argument but received {}'.format(idx))
+
         return _proc_complex
 
     else:
+
         def _proc_seq(arguments):
-            [arg] = yield from match_arguments(arguments, Integer, 1)
+            [arg] = yield from utils.match_arguments(arguments, Integer, 1)
             seq, idx = fun.value, arg.value
             if isinstance(fun, List):
                 return seq[idx]
-            return guessed_wrap(seq[idx:][:1])
+            return utils.guessed_wrap(seq[idx:][:1])
+
         return _proc_seq
 
 
-def find_builtin(id):
+def find_builtin(id: int):
     '''Finds the recipe function corresponding to the builtin function id.
     Args:
         id: Built-in Function ID
@@ -160,7 +208,7 @@ def find_builtin(id):
 
 
 def build_builtin_tables():
-    table = {}
+    table: dict[str, utils.Coroutine] = {}
     for name in builtins.__all__:
         imported = __import__('pbhhg_py.builtins.' + name, fromlist=[name])
         new_table = imported.build_tbl(proc_functional)

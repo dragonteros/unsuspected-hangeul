@@ -29,6 +29,7 @@ def _to_int_if_possible(num):
 
 
 class Complex(namedtuple('Complex', 'value')):
+
     def __str__(self):
         re = _to_int_if_possible(self.value.real)
         im = _to_int_if_possible(self.value.imag)
@@ -38,15 +39,14 @@ class Complex(namedtuple('Complex', 'value')):
         return '{}{}{}i'.format(re_str if re else '', minus_str, im_str)
 
 
-class Dict (namedtuple('Dict', 'value')):
+class Dict(namedtuple('Dict', 'value')):
+
     def __hash__(self):
         return hash(tuple(self.value.items()))
 
 
-# Intermediate values
+class Function(object):
 
-
-class Function (object):
     def __init__(self, adj=''):
         self._str = '<{}Function>'.format(adj)
 
@@ -60,12 +60,12 @@ class Function (object):
         return self._str
 
 
-class Closure (Function):
+class Closure(Function):
+
     def __init__(self, body, env):
         self.body = body
         self.env = env
-        self._str = '<Closure created at depth {}>'.format(
-            len(env.args))
+        self._str = '<Closure created at depth {}>'.format(len(env.args))
 
     def __call__(self, argv):
         canned_funs, canned_args = self.env
@@ -74,11 +74,15 @@ class Closure (Function):
         yield
 
 
+# Collection
+Real = Integer | Float
+Number = Real | Complex
+Sequence = List | String | Bytes
+Callable = Function | Boolean | Sequence | Dict | Complex
+Any = Number | Callable | IO | Nil
+
+# Intermediate values
 Expr = namedtuple('Expr', 'expr env cache_box')
 
-# Collection
-Real = (Integer, Float)
-Number = (Real, Complex)
-Sequence = (List, String, Bytes)
-Callable = (Function, Boolean, Sequence, Dict, Complex)
-Any = (Number, Callable, IO, Nil)
+UnsuspectedHangeulStrictValue = Any
+UnsuspectedHangeulValue = UnsuspectedHangeulStrictValue | Expr

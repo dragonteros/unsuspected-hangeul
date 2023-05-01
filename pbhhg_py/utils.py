@@ -1,9 +1,18 @@
 """Useful utilities for arguments."""
+from typing import Generator, Iterable, TypeVar, TypeGuard
 
 from pbhhg_py import abstract_syntax as AS
 
+Coroutine = Generator[AS.UnsuspectedHangeulValue,
+                      AS.UnsuspectedHangeulStrictValue,
+                      AS.UnsuspectedHangeulValue]
 
-def map_strict(seq, generator=None):
+
+def map_strict(
+    seq: Iterable[AS.UnsuspectedHangeulValue],
+    generator: Coroutine | None = None
+) -> Generator[AS.UnsuspectedHangeulValue, AS.UnsuspectedHangeulStrictValue,
+               list[AS.UnsuspectedHangeulStrictValue]]:
     result = []
     for item in seq:
         if generator is None:
@@ -30,83 +39,87 @@ def recursive_strict(item):
     return item
 
 
-def all_equal(seq):
+_T = TypeVar('_T')
+
+
+def all_equal(seq: Iterable[_T]):
     """Checks if all elements in `seq` are equal."""
     seq = list(seq)
     return not seq or seq.count(seq[0]) == len(seq)
 
 
-def _force_list(condition):
+def _force_list(condition: _T | list[_T]) -> list[_T]:
     if isinstance(condition, list):
         return condition
     return [condition]
 
 
-def is_type(argv, types):
+_ValueT = TypeVar('_ValueT', bound=AS.Any)
+
+
+def is_type(
+    argv: AS.Any | list[AS.Any],
+    types: type[_ValueT],
+) -> TypeGuard[_ValueT | list[_ValueT]]:
     '''Checks if all elements of `argv` are of type in `types`.'''
     argv = _force_list(argv)
     return all(isinstance(arg, types) for arg in argv)
 
 
-def is_same_type(argv):
-    argv = _force_list(argv)
+def is_same_type(argv: list[AS.Any]) -> TypeGuard[list[_ValueT]]:
     return all_equal(type(arg) for arg in argv)
 
 
-def _format_list(strings, conj='and'):
+def _format_list(strings: Iterable[str], conj='and'):
     strings = list(strings)
     if len(strings) < 2:
         return ''.join(strings)
     return '{} {} {}'.format(', '.join(strings[:-1]), conj, strings[-1])
 
 
-def _flatten_types(node):
-    if isinstance(node, (list, tuple)):
-        return sum([_flatten_types(a) for a in node], [])
-    return [node]
-
-
-def check_type(argv, types):
+def check_type(argv: AS.Any | list[AS.Any], types: type[AS.Any]):
     if not is_type(argv, types):
         argv = _force_list(argv)
         arg_type_formatted = _format_list(type(a).__name__ for a in argv)
-        types = _flatten_types(types)
-        type_formatted = _format_list(a.__name__ for a in types)
         raise ValueError('Expected arguments of types '
-                         'among {} but received {}.'
-                         .format(type_formatted, arg_type_formatted))
+                         f'among {types} but received {arg_type_formatted}.')
 
 
-def check_same_type(argv):
-    argv = _force_list(argv)
+def check_same_type(argv: list[AS.Any]):
     if not is_same_type(argv):
         arg_type_formatted = _format_list(type(a).__name__ for a in argv)
         raise ValueError('Expected arguments of the same type '
-                         'but received {}.'.format(
-                             arg_type_formatted))
+                         'but received {}.'.format(arg_type_formatted))
 
 
-def check_arity(argv, arities):
+def check_arity(argv: list[AS.Any], arities: int | list[int]):
     arities = _force_list(arities)
     if len(argv) not in arities:
         arities_formatted = _format_list(arities, 'or')
-        raise ValueError('Expected {} arguments but received {}.'
-                         .format(arities_formatted, len(argv)))
+        raise ValueError('Expected {} arguments but received {}.'.format(
+            arities_formatted, len(argv)))
 
 
-def check_min_arity(argv, minimum_arity):
+def check_min_arity(argv: list[AS.Any], minimum_arity: int):
     if len(argv) < minimum_arity:
-        raise ValueError('Expected at least {} arguments but received {}.'
-                         .format(minimum_arity, len(argv)))
+        raise ValueError(
+            'Expected at least {} arguments but received {}.'.format(
+                minimum_arity, len(argv)))
 
 
-def check_max_arity(argv, maximum_arity):
+def check_max_arity(argv: list[AS.Any], maximum_arity: int):
     if len(argv) > maximum_arity:
-        raise ValueError('Expected at most {} arguments but received {}.'
-                         .format(maximum_arity, len(argv)))
+        raise ValueError(
+            'Expected at most {} arguments but received {}.'.format(
+                maximum_arity, len(argv)))
 
 
-def match_arguments(argv, types, arities=None, min_arity=0):
+def match_arguments(
+    argv: list[AS.Any],
+    types: type[AS.Any],
+    arities: list[int] | None = None,
+    min_arity: int = 0,
+):
     if arities is not None:
         check_arity(argv, arities)
     if min_arity:
@@ -116,7 +129,11 @@ def match_arguments(argv, types, arities=None, min_arity=0):
     return argv
 
 
-def match_defaults(argv, arity, defaults=()):
+def match_defaults(
+        argv: list[AS.UnsuspectedHangeulValue],
+        arity: int,
+        defaults: Iterable[AS.UnsuspectedHangeulValue] = (),
+):
     check_max_arity(argv, arity)
     check_min_arity(argv, arity - len(defaults))
     if len(argv) < arity:
@@ -125,7 +142,7 @@ def match_defaults(argv, arity, defaults=()):
     return argv
 
 
-def guessed_wrap(arg):
+def guessed_wrap(arg: AS.Any):
     """Wraps arg based on its type."""
     converter = {
         int: AS.Integer,
@@ -135,7 +152,7 @@ def guessed_wrap(arg):
         tuple: AS.List,
         str: AS.String,
         bytes: AS.Bytes,
-        dict: AS.Dict
+        dict: AS.Dict,
     }
     for t, T in converter.items():
         if isinstance(arg, t):

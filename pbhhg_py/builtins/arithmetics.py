@@ -23,12 +23,12 @@ def _modular_inverse(a, mod):
     except ValueError:
         g, inverse, _ = _extended_gcd(a, mod)
         if g == 1:
-            return inverse % m
+            return inverse % mod
     raise ValueError(
         'Modular inverse of {} mod {} does not exist.'.format(a, mod))
 
 
-def build_tbl(proc_functional):
+def build_tbl(proc_functional) -> dict[str, Coroutine]:
     def _multiply(argv):
         check_min_arity(argv, 1)
         argv = yield from map_strict(argv)
