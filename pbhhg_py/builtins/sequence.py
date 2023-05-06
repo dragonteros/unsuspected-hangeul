@@ -1,79 +1,89 @@
-from pbhhg_py.abstract_syntax import *
-from pbhhg_py.utils import *
+from typing import Sequence
+
+from pbhhg_py import abstract_syntax as AS
+from pbhhg_py import utils
 
 
-def build_tbl(proc_functional):
-    def _len(argv):
-        [seq] = yield from match_arguments(argv, Sequence, 1)
-        return Integer(len(seq.value))
+def build_tbl(
+    proc_functional: utils.ProcFunctional,
+) -> dict[str, AS.Evaluation]:
+    def _len(argv: Sequence[AS.Value]) -> AS.EvalContext:
+        [seq] = yield from utils.match_arguments(argv, AS.Sequence, 1)
+        return AS.Integer(len(seq.value))
 
-    def _slice(argv):
-        check_arity(argv, [2, 3, 4])
-        argv = yield from map_strict(argv)
-        check_type(argv[0], Sequence)
-        check_type(argv[1:], Integer)
+    def _slice(argv: Sequence[AS.Value]) -> AS.EvalContext:
+        utils.check_arity(argv, [2, 3, 4])
+        argv = yield from utils.map_strict(argv)
+        [seq] = utils.check_type(argv[:1], AS.Sequence)
+        rest = utils.check_type(argv[1:], AS.Integer)
 
-        seq, *rest = [arg.value for arg in argv]
-        start, end, step = match_defaults(rest, 3, [len(seq), 1])
-        result = seq[start:end:step]
-        if isinstance(argv[0], List):
-            return List(result)
-        elif isinstance(argv[0], String):
-            return String(result)
-        elif isinstance(argv[0], Bytes):
-            return Bytes(result)
+        _rest = [arg.value for arg in rest]
+        start, end, step = utils.match_defaults(_rest, 3, [len(seq.value), 1])
+        result = seq.value[start:end:step]
+        if isinstance(result, str):
+            return AS.String(result)
+        elif isinstance(result, bytes):
+            return AS.Bytes(result)
+        else:
+            return AS.List(result)
 
-    def _map(argv):
-        check_arity(argv, 2)
+    def _map(argv: Sequence[AS.Value]) -> AS.EvalContext:
+        utils.check_arity(argv, 2)
         seq = yield argv[0]
-        check_type(seq, List)  # ?
-        _fn = yield from proc_functional(argv[1])
-        value = yield from map_strict(seq.value, lambda x: _fn([x]))
-        return List(value)
+        [seq] = utils.check_type([seq], AS.List)
+        fun = yield from utils.strict_functional(argv[1])
+        _fn = proc_functional(fun)
+        value = yield from utils.map_strict_with_hook(
+            seq.value, lambda x: _fn([x])
+        )
+        return AS.List(tuple(value))
 
-    def _filter(argv):  # maybe lazy later?
-        check_arity(argv, 2)
+    def _filter(argv: Sequence[AS.Value]) -> AS.EvalContext:
+        # maybe lazy later?
+        utils.check_arity(argv, 2)
         seq = yield argv[0]
-        check_type(seq, List)  # ?
-        _fn = yield from proc_functional(argv[1])
-        fit_check = yield from map_strict(seq.value, lambda x: _fn([x]))
-        fit_check = yield from map_strict(fit_check)
-        check_type(fit_check, Boolean)
+        [seq] = utils.check_type([seq], AS.List)
+        fun = yield from utils.strict_functional(argv[1])
+        _fn = proc_functional(fun)
+        fit_check = yield from utils.map_strict_with_hook(
+            seq.value, lambda x: _fn([x])
+        )
+        fit_check = yield from utils.map_strict(fit_check)
+        fit_check = utils.check_type(fit_check, AS.Boolean)
         zipped = zip(seq.value, fit_check)
-        return List(tuple(arg for arg, fits in zipped if fits.value))
+        return AS.List(tuple(arg for arg, fits in zipped if fits.value))
 
-    def _fold(argv):
-        check_arity(argv, [2, 3])
+    def _fold(argv: Sequence[AS.Value]) -> AS.EvalContext:
+        utils.check_arity(argv, [2, 3])
         init = None
         if len(argv) == 3:
             x, init, y = argv
             argv = [x, y]
 
-        preserved_argv = argv
-        argv = yield from map_strict(argv)
-        from_right = is_type(argv[0], List)
-        maybe_reversed = reversed if from_right else lambda x: x
+        first_arg = yield argv[0]
+        from_right = utils.is_type([first_arg], AS.List)
+        step = -1 if from_right else 1
 
-        fun, seq = maybe_reversed(argv)
-        _fn, _ = maybe_reversed(preserved_argv)
-        _fn = yield from proc_functional(_fn, stricted=fun)
-        check_type(seq, List)
+        fun, seq = argv[::step]
+        fun = yield from utils.strict_functional(fun)
+        _fn = proc_functional(fun)
+        [seq] = utils.check_type([(yield seq)], AS.List)
 
         acc = init
-        feed = list(maybe_reversed(seq.value))
-        if init is None:
+        feed = seq.value[::step]
+        if acc is None:
             acc = feed[0]
             feed = feed[1:]
 
         for item in feed:
-            args = list(maybe_reversed([acc, item]))
+            args = [acc, item][::step]
             acc = yield from _fn(args)
         return acc
 
     return {
-        'ㅈㄷ': _len,  # 장단
-        'ㅂㅈ': _slice,  # 발췌
-        'ㅁㄷ': _map,  # ~마다
-        'ㅅㅂ': _filter,  # 선별
-        'ㅅㄹ': _fold,  # 수렴
+        "ㅈㄷ": _len,  # 장단
+        "ㅂㅈ": _slice,  # 발췌
+        "ㅁㄷ": _map,  # ~마다
+        "ㅅㅂ": _filter,  # 선별
+        "ㅅㄹ": _fold,  # 수렴
     }

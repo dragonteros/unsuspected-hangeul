@@ -1,101 +1,106 @@
 import os
+from typing import Mapping, Sequence
 
-from pbhhg_py.abstract_syntax import *
-from pbhhg_py import utils
+from pbhhg_py import abstract_syntax as AS
+from pbhhg_py import error
 from pbhhg_py import modules
 from pbhhg_py import parse
+from pbhhg_py import utils
 
 
-class BuiltinModule(Function):
-    def __init__(self, module, keys):
+class BuiltinModule(AS.Function):
+    def __init__(self, module: AS.Evaluation, keys: list[str]):
         self.module = module
-        self._str = '<Builtin Module {}>'.format(' '.join(keys))
+        self._str = "<Builtin Module {}>".format(" ".join(keys))
 
-    def __str__(self):
-        return self._str
-
-    def __call__(self, args):
-        return (yield from self.module(args))
+    def __call__(self, argv: Sequence[AS.Value]) -> AS.EvalContext:
+        return (yield from self.module(argv))
 
 
-BUITLIN_MODULE_REGISTRY = Dict({})
-MODULE_REGISTRY = {}
+_BUITLIN_MODULE_REGISTRY: dict[AS.StrictValue, AS.Value] = {}
+_MODULE_REGISTRY: dict[str, AS.Value] = {}
 
 
-def get_module_from_registry(filepath):
-    for regpath in MODULE_REGISTRY:
+def _get_module_from_registry(filepath: str):
+    for regpath in _MODULE_REGISTRY:
         if os.path.samefile(filepath, regpath):
-            return MODULE_REGISTRY[regpath]
+            return _MODULE_REGISTRY[regpath]
     return None
 
 
-def load_from_path(filepath):
-    module = get_module_from_registry(filepath)
+def _load_from_path(filepath: str):
+    module = _get_module_from_registry(filepath)
     if module is not None:
         return module
 
-    with open(filepath, 'r', encoding='utf-8') as reader:
+    with open(filepath, "r", encoding="utf-8") as reader:
         program = reader.read()
     exprs = parse.parse(program)
     if len(exprs) != 1:
-        raise ValueError('A module file should contain exactly '
-                         'one object but received: {}'.format(len(exprs)))
-    env = Env([], [])
-    module = yield Expr(exprs[0], env, [])
+        raise AS.UnsuspectedHangeulError(
+            f"모듈에는 하나의 표현식만 있어야 하는데 {len(exprs)}개의 표현식이 있습니다.", []
+        )
+    env = AS.Env([], [])
+    module = AS.Expr(exprs[0], env)
 
-    MODULE_REGISTRY[filepath] = module
+    _MODULE_REGISTRY[filepath] = module
     return module
 
 
-def load_from_literal(literals):
+def _load_from_literal(literals: list[int]):
     """Loads a module at a path described by `literals`
+
     Args:
         literals: A list of numbers.
+
     Returns:
         module: Imported module. BuiltinModule or arbitrary pbhhg object.
     """
-    name = ' '.join(parse.encode_number(l) for l in literals)
-    errmsg = 'No module found under literal sequence {}.'.format(name)
+    name = " ".join(parse.encode_number(n) for n in literals)
+    errmsg = f"정수 리터럴열 {name}에 맞는 모듈을 찾지 못했습니다."
     # Search builtins
     if literals[0] == 5:
-        module = BUITLIN_MODULE_REGISTRY
+        module = AS.Dict(_BUITLIN_MODULE_REGISTRY)
         for idx in literals[1:]:
-            if not isinstance(module, Dict):
-                raise ImportError(errmsg)
-            module = module.value[Integer(idx)]
+            if not isinstance(module, AS.Dict):
+                raise error.UnsuspectedHangeulNotFoundError(errmsg)
+            module = module.value[AS.Integer(idx)]
         return module
 
     # Search files
-    filepath = search_file_from_literal(literals)
+    filepath = _search_file_from_literal(literals)
     if filepath is None:
-        raise ImportError(errmsg)
-    module = yield from load_from_path(filepath)
+        raise error.UnsuspectedHangeulNotFoundError(errmsg)
+    module = _load_from_path(filepath)
     return module
 
 
-def search_file_from_literal(literals, location='.'):
+def _search_file_from_literal(
+    literals: list[int], location: str = "."
+) -> str | None:
     if not literals:
         if not os.path.isfile(location):
             return None  # TODO: Dict?
         return location
 
-    results = []
+    results: list[str] = []
     cur, *sub = literals
     for entry in os.listdir(location):
-        if not matches_literal(entry, cur):
+        if not _matches_literal(entry, cur):
             continue
         search_path = os.path.join(location, entry)
-        result = search_file_from_literal(sub, search_path)
+        result = _search_file_from_literal(sub, search_path)
         if result:
             results.append(result)
 
     if len(results) > 1:  # maybe filter by extension?
-        raise RuntimeError('Multiple files matched literal sequence '
-                           '{} at {}'.format(literals, location))
+        raise error.UnsuspectedHangeulImportError(
+            f"{location}에 정수 리터럴열 {literals}에 맞는 모듈이 {len(results)}개 있어 모호합니다."
+        )
     return results[0] if results else None
 
 
-def matches_literal(string, literal):
+def _matches_literal(string: str, literal: int):
     string = parse.normalize(string)
     try:
         parsed_literal = parse.parse_number(string)
@@ -104,48 +109,71 @@ def matches_literal(string, literal):
     return literal == parsed_literal
 
 
-def is_literal_expr(expr):
-    return isinstance(expr, Expr) and isinstance(expr.expr, Literal)
+def _get_literals(exprs: Sequence[AS.Value]) -> list[int] | None:
+    literals: list[int] = []
+    for expr in exprs:
+        if isinstance(expr, AS.Expr) and isinstance(expr.expr, AS.Literal):
+            literals.append(expr.expr.value)
+        else:
+            return None
+    return literals
 
 
-def construct_builtin_module(data, keys):
+def _construct_builtin_module(
+    data: AS.StrictValue
+    | AS.Evaluation
+    | utils.DeepDict[str, AS.StrictValue | AS.Evaluation],
+    keys: list[str],
+):
     """Recursively iterates over dict to convert python values
     to pbhhg values and wrap functions in BuiltinModule."""
-    if isinstance(data, dict):
-        data = {Integer(parse.parse_number(k)):
-                construct_builtin_module(d, keys + [k])
-                for k, d in data.items()}
-        return Dict(data)
+    if isinstance(data, Mapping):
+        return _construct_builtin_modules(data, keys)
     elif callable(data):
         return BuiltinModule(data, keys)
     else:
         return utils.guessed_wrap(data)
 
 
-def build_tbl(proc_functional):
-    def _register_builtin_module(name):
-        """Builds a Dict based on the table from module `name`."""
-        module = __import__('pbhhg_py.modules.' + name, fromlist=[name])
-        data = module.build_tbl(proc_functional)  # dict
-        return construct_builtin_module(data, ['ㅂ'])  # Dict
+def _construct_builtin_modules(
+    data: utils.DeepDict[str, AS.StrictValue | AS.Evaluation],
+    keys: list[str],
+) -> AS.Dict:
+    """Recursively iterates over dict to convert python values
+    to pbhhg values and wrap functions in BuiltinModule."""
+    value: dict[AS.StrictValue, AS.Value] = {
+        AS.Integer(parse.parse_number(k)): _construct_builtin_module(
+            v, keys + [k]
+        )
+        for k, v in data.items()
+    }
+    return AS.Dict(value)
 
-    def _import(argv):
+
+def build_tbl(
+    proc_functional: utils.ProcFunctional,
+) -> dict[str, AS.Evaluation]:
+    def _register_builtin_module(name: str) -> AS.Dict:
+        """Builds a Dict based on the table from module `name`."""
+        module = __import__("pbhhg_py.modules." + name, fromlist=[name])
+        data: dict[str, AS.Evaluation] = module.build_tbl(proc_functional)
+        return _construct_builtin_modules(data, ["ㅂ"])
+
+    def _import(argv: Sequence[AS.Value]) -> AS.EvalContext:
         utils.check_min_arity(argv, 1)
-        if all(is_literal_expr(arg) for arg in argv):
-            literals = [arg.expr.value for arg in argv]
-            module = yield from load_from_literal(literals)
-            return module
+        literals = _get_literals(argv)
+        if literals is not None:
+            return _load_from_literal(literals)
 
         utils.check_arity(argv, 1)
         filepath = yield argv[0]
-        utils.check_type(filepath, String)
-        module = yield from load_from_path(filepath.value)
-        return module
+        [filepath] = utils.check_type([filepath], AS.String)
+        return _load_from_path(filepath.value)
 
     for name in modules.__all__:
-        module = _register_builtin_module(name)  # Dict
-        BUITLIN_MODULE_REGISTRY.value.update(module.value)
+        module = _register_builtin_module(name)
+        _BUITLIN_MODULE_REGISTRY.update(module.value)
 
     return {
-        'ㅂ': _import,  # 불러오기
+        "ㅂ": _import,  # 불러오기
     }

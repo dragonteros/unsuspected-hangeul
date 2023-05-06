@@ -1,216 +1,274 @@
-from typing import NamedTuple
+import dataclasses
+from typing import Generator, Generic, Sequence, TypeVar
 
+from pbhhg_py import abstract_syntax as AS
 from pbhhg_py import builtins
-from pbhhg_py.abstract_syntax import *
-from pbhhg_py.parse import encode_number
-from pbhhg_py import utils, error
+from pbhhg_py import error
+from pbhhg_py import parse
+from pbhhg_py import utils
+
+_T = TypeVar("_T")
 
 
-class ComputationRequest(NamedTuple):
-    request: Expr
+@dataclasses.dataclass
+class ComputationRequest:
+    value: AS.Expr
 
 
-class Computation:
+@dataclasses.dataclass
+class ComputationResponse:
+    value: AS.StrictValue | AS.UnsuspectedHangeulError
 
-    def __init__(self, coroutine: utils.Coroutine):
-        self.coroutine = coroutine
-        self._last_request: Expr | None = None
+
+@dataclasses.dataclass
+class ComputationResult(Generic[_T]):
+    value: _T | AS.UnsuspectedHangeulError
+
+
+class StackFrameBase(Generic[_T]):
+    def __init__(self, coroutine: Generator[AS.Value, AS.StrictValue, _T]):
+        self._coroutine = coroutine
 
     def communicate(
         self,
-        response: UnsuspectedHangeulStrictValue
-        | error.UnsuspectedHangeulError | None,
-    ) -> (ComputationRequest | UnsuspectedHangeulValue |
-          error.UnsuspectedHangeulError):
-        if self._last_request is not None and not self._last_request.cache_box:
-            self._last_request.cache_box.append(response)
-
-        assert not isinstance(response, Expr)
+        response: ComputationResponse | None,
+    ) -> ComputationRequest | ComputationResult[_T]:
         try:
             while True:
-                if isinstance(response, error.UnsuspectedHangeulError):
-                    request = self.coroutine.throw(response)
+                if response is None:
+                    request = next(self._coroutine)
+                elif isinstance(response.value, AS.UnsuspectedHangeulError):
+                    request = self._coroutine.throw(response.value)
                 else:
-                    request = self.coroutine.send(response)
+                    request = self._coroutine.send(response.value)
 
-                if isinstance(request, Expr):
-                    if not request.cache_box:
-                        self._last_request = request
+                if isinstance(request, AS.Expr):
+                    if not request.cache_box.value:
                         return ComputationRequest(request)
-                    request = request.cache_box[0]
-                response = request
+                    request = request.cache_box.value
+                response = ComputationResponse(request)
 
         except StopIteration as result:
-            return_value: UnsuspectedHangeulValue = result.value
-            return return_value
-        except error.UnsuspectedHangeulError as e:
-            return e
+            return ComputationResult(result.value)
+        except AS.UnsuspectedHangeulError as e:
+            return ComputationResult(e)
 
 
-def evaluate(coroutine: utils.Coroutine):
-    '''Executes coroutine and provides strictly evaluated values
-       as it requests.'''
-    MAX_STACK_SIZE = 5000
-    return_value_or_error = None
-    stack_of_cortns = [Computation(coroutine)]
+class StackFrame(StackFrameBase[AS.Value]):
+    def __init__(self, request: ComputationRequest):
+        self._cache_box = request.value.cache_box
+        super().__init__(interpret(request.value))
 
-    while stack_of_cortns:
-        if len(stack_of_cortns) > MAX_STACK_SIZE:
-            raise RuntimeError('Maximum Stack Size Exceeded.')
-        computation = stack_of_cortns[-1]
-        request_or_result = computation.communicate(return_value_or_error)
-
-        if isinstance(request_or_result, ComputationRequest):
-            new_computation = Computation(interpret(request_or_result.request))
-            stack_of_cortns.append(new_computation)
-            return_value_or_error = None
-        else:
-            stack_of_cortns.pop()
-            if isinstance(request_or_result, Expr):
-                new_computation = Computation(interpret(request_or_result))
-                stack_of_cortns.append(new_computation)
-                return_value_or_error = None
+    def communicate(
+        self, response: ComputationResponse | None
+    ) -> ComputationRequest | ComputationResult[AS.Value]:
+        request_or_result = super().communicate(response)
+        if isinstance(request_or_result, ComputationResult):
+            if isinstance(request_or_result.value, AS.Expr):
+                request_or_result.value.cache_box.requestor = self._cache_box
             else:
-                return_value_or_error = request_or_result
+                self._cache_box.resolve(request_or_result.value)
+        return request_or_result
 
-    return return_value_or_error
+
+def evaluate(coroutine: Generator[AS.Value, AS.StrictValue, _T]) -> _T:
+    """Executes coroutine and provides strictly evaluated values
+    as it requests."""
+    MAX_STACK_SIZE = 5000
+    head = StackFrameBase(coroutine)
+    tail: list[StackFrame] = []
+
+    response: ComputationResponse | None = None
+    while True:
+        if tail:
+            if len(tail) >= MAX_STACK_SIZE:
+                raise RuntimeError("Maximum Stack Size Exceeded.")
+
+            request_or_result = tail[-1].communicate(response)
+            if isinstance(request_or_result, ComputationRequest):
+                tail.append(StackFrame(request_or_result))
+                response = None
+            elif isinstance(request_or_result.value, AS.Expr):
+                request = ComputationRequest(request_or_result.value)
+                tail[-1] = StackFrame(request)
+                response = None
+            else:
+                tail.pop()
+                response = ComputationResponse(request_or_result.value)
+        else:
+            request_or_result = head.communicate(response)
+            if isinstance(request_or_result, ComputationRequest):
+                tail.append(StackFrame(request_or_result))
+                response = None
+            else:
+                result = request_or_result.value
+                if isinstance(result, AS.UnsuspectedHangeulError):
+                    raise result
+                return result
 
 
-def interpret(value: Expr) -> utils.Coroutine:
-    '''Interpreter coroutine.
+def interpret(value: AS.Expr) -> AS.EvalContext:
+    """Interpreter coroutine.
+
     Args:
         value: an Expr value to interpret
+
     Yields:
         expr: an Expr value to send to main routine
             which in turn sends strictly evaluated value
+
     Returns:
         A little more evaluated version of value.
-    '''
-    expr, env, cache_box = value
-    if cache_box:
-        return cache_box[0]
+    """
+    expr = value.expr
+    env = value.env
 
-    if isinstance(expr, Literal):
-        return Integer(expr.value)
+    if value.cache_box.value:
+        cache = value.cache_box.value
+        if isinstance(cache, AS.UnsuspectedHangeulError):
+            raise cache
+        return cache
 
-    elif isinstance(expr, FunRef):
-        return env.funs[-expr.rel - 1]
+    if isinstance(expr, AS.Literal):
+        return AS.Integer(expr.value)
 
-    elif isinstance(expr, ArgRef):
+    elif isinstance(expr, AS.FunRef):
+        try:
+            return env.funs[-expr.rel - 1]
+        except IndexError:
+            raise error.UnsuspectedHangeulOutOfRangeError("함수 참조의 범위를 벗어났습니다.")
+
+    elif isinstance(expr, AS.ArgRef):
         assert len(env.funs) == len(env.args)
         relA, relF = expr
-        args = env.args[-relF - 1]
+        try:
+            args = env.args[-relF - 1]
+        except IndexError:
+            raise error.UnsuspectedHangeulOutOfRangeError(
+                "존재하지 않는 함수에 대한 인수 참조를 시도했습니다."
+            )
 
-        relA = yield Expr(relA, env, [])
-        utils.check_type(relA, Integer)
-        relA = relA.value
+        relA = yield AS.Expr(relA, env)
+        [relA] = utils.check_type([relA], AS.Integer)
 
-        if not 0 <= relA < len(args):
-            raise ValueError(
-                ('Out of Range: {} arguments received '
-                 'but {}-th argument requested').format(len(args), relA))
-        return args[relA]
+        if not 0 <= relA.value < len(args):
+            raise error.UnsuspectedHangeulOutOfRangeError(
+                f"{relA.value}번째 인수를 참조하는데 {len(args)}개의 인수만 받았습니다."
+            )
+        return args[relA.value]
 
-    elif isinstance(expr, FunDef):
+    elif isinstance(expr, AS.FunDef):
         funs, args = env
         new_funs = funs[:]
-        new_env = Env(new_funs, args)
-        closure = Closure(expr.body, new_env)
+        new_env = AS.Env(new_funs, args)
+        closure = AS.Closure(expr.body, new_env)
         new_env.funs.append(closure)
         return closure
 
-    elif isinstance(expr, FunCall):
-        fun, argv = expr
-        fun = Expr(fun, env, [])
-        argv = [Expr(arg, env, []) for arg in argv]
-        recipe = yield from proc_functional(fun, allow=Callable)
-        return (yield from recipe(argv))
-
-    raise ValueError('Unexpected expression: {}'.format(expr))
+    fun, argv = expr
+    fun = AS.Expr(fun, env)
+    argv = [AS.Expr(arg, env) for arg in argv]
+    fun = yield from utils.strict_functional(fun)
+    recipe = proc_functional(fun, general_callable=True)
+    return (yield from recipe(argv))
 
 
 def proc_functional(
-    fun: UnsuspectedHangeulValue,
-    allow: type[Any] | None = None,
-    stricted: UnsuspectedHangeulStrictValue | None = None,
-):
+    fun: AS.StrictValue | AS.BuiltinFunction,
+    general_callable: bool = False,
+) -> AS.Evaluation:
     """
     Args:
         fun: A maybe-Expr value that may correspond to a function.
-        allow: Union of types that are allowed for execution.
-        stricted: Cached strict value of fun
+        general_callable: Allow non-Function callable types.
+
     Returns:
         A generator that receives argument list and returns maybe-Expr value.
     """
-    if isinstance(fun, Expr) and isinstance(fun.expr, Literal):
-        return find_builtin(fun.expr.value)
+    if isinstance(fun, AS.BuiltinFunction):
+        return find_builtin(fun.literal.value)
 
-    fun = stricted or (yield fun)
-    allow = Function if allow is None else Function | allow
-    utils.check_type(fun, allow)
+    allow = AS.Callable if general_callable else AS.Function
+    [fun] = utils.check_type([fun], allow)
 
-    if isinstance(fun, Function):
-        return fun
+    if isinstance(fun, AS.Boolean):
+        value = fun.value
 
-    elif isinstance(fun, Boolean):
-
-        def _proc_boolean(arguments):
-            utils.check_arity(arguments, 2)
-            return arguments[0 if fun.value else 1]
+        def _proc_boolean(argv: Sequence[AS.Value]) -> AS.EvalContext:
+            utils.check_arity(argv, 2)
+            return argv[0 if value else 1]
             yield
 
         return _proc_boolean
 
-    elif isinstance(fun, Dict):
+    elif isinstance(fun, AS.Dict):
 
-        def _proc_dict(arguments):
-            utils.check_arity(arguments, 1)
-            arg = yield from utils.recursive_strict(arguments[0])
-            return fun.value[arg]
+        def _proc_dict(argv: Sequence[AS.Value]) -> AS.EvalContext:
+            utils.check_arity(argv, 1)
+            arg = yield from utils.recursive_strict(argv[0])
+            try:
+                return fun.value[arg]
+            except KeyError:
+                raise error.UnsuspectedHangeulNotFoundError(
+                    f"사전에 다음 표제가 없습니다: {arg}"
+                )
 
         return _proc_dict
 
-    elif isinstance(fun, Complex):
+    elif isinstance(fun, AS.Complex):
 
-        def _proc_complex(arguments):
-            [arg] = yield from utils.match_arguments(arguments, Integer, 1)
+        def _proc_complex(argv: Sequence[AS.Value]) -> AS.EvalContext:
+            [arg] = yield from utils.match_arguments(argv, AS.Integer, 1)
             num, idx = fun.value, arg.value
             if idx in [0, 1]:
-                return Float(num.real if idx == 0 else num.imag)
-            raise ValueError(
-                'Expected 0 or 1 for argument but received {}'.format(idx))
+                return AS.Float(num.real if idx == 0 else num.imag)
+            raise error.UnsuspectedHangeulValueError(
+                f"복소수 객체의 {idx}번째 요소를 접근하려고 했습니다."
+            )
 
         return _proc_complex
 
-    else:
+    elif isinstance(fun, AS.Sequence):
+        seq = fun.value
 
-        def _proc_seq(arguments):
-            [arg] = yield from utils.match_arguments(arguments, Integer, 1)
-            seq, idx = fun.value, arg.value
-            if isinstance(fun, List):
-                return seq[idx]
+        def _proc_seq(argv: Sequence[AS.Value]) -> AS.EvalContext:
+            [arg] = yield from utils.match_arguments(argv, AS.Integer, 1)
+            idx = arg.value
+            if isinstance(seq, tuple):
+                try:
+                    return seq[idx]
+                except IndexError:
+                    raise error.UnsuspectedHangeulOutOfRangeError(
+                        f"목록의 범위 밖의 번호를 요청했습니다."
+                    )
             return utils.guessed_wrap(seq[idx:][:1])
 
         return _proc_seq
 
+    return fun
+
 
 def find_builtin(id: int):
-    '''Finds the recipe function corresponding to the builtin function id.
+    """Finds the recipe function corresponding to the builtin function id.
+
     Args:
         id: Built-in Function ID
+
     Returns:
-        Return corresponding function that takes arguments
-    '''
-    inst = encode_number(id)
+        Corresponding function that takes arguments.
+    """
+    inst = parse.encode_number(id)
     if inst in BUITLINS:
         return BUITLINS[inst]
-    raise ValueError('Unexpected builtin functions ' + inst)
+    raise error.UnsuspectedHangeulTypeError(
+        f"{inst}라는 이름의 기본 제공 함수를 찾지 못했습니다."
+    )
 
 
 def build_builtin_tables():
-    table: dict[str, utils.Coroutine] = {}
+    table: dict[str, AS.Evaluation] = {}
     for name in builtins.__all__:
-        imported = __import__('pbhhg_py.builtins.' + name, fromlist=[name])
+        imported = __import__("pbhhg_py.builtins." + name, fromlist=[name])
         new_table = imported.build_tbl(proc_functional)
         table.update(new_table)
     return table

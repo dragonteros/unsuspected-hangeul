@@ -1,61 +1,64 @@
-from pbhhg_py.abstract_syntax import *
-from pbhhg_py.utils import *
+from typing import Generator, Sequence
+
+from pbhhg_py import abstract_syntax as AS
+from pbhhg_py import utils
 
 
-class Pipe(Function):
-    def __init__(self, funs):
-        super().__init__('Piped ')
-        self.funs = funs
+class Pipe(AS.Function):
+    def __init__(self, evaluations: Sequence[AS.Evaluation]):
+        super().__init__("Piped ")
+        self._evaluations = evaluations
 
-    def __call__(self, args):
-        for fun in self.funs:
-            arg = yield from fun(args)
-            args = [arg]
-        return args[0]
-
-
-class Collect(Function):
-    def __init__(self, _fn):
-        super().__init__('Collectedly-Receiving ')
-        self._fn = _fn
-
-    def __call__(self, args):
-        check_arity(args, 1)
-        seq = yield args[0]
-        check_type(seq, List)
-        return (yield from self._fn(seq.value))
+    def __call__(self, argv: Sequence[AS.Value]) -> AS.EvalContext:
+        for evaluation in self._evaluations:
+            arg = yield from evaluation(argv)
+            argv = [arg]
+        return argv[0]
 
 
-class Spread(Function):
-    def __init__(self, _fn):
-        super().__init__('Spreadly-Receiving ')
-        self._fn = _fn
+class Collect(AS.Function):
+    def __init__(self, evaluation: AS.Evaluation):
+        super().__init__("Collectedly-Receiving ")
+        self._evaluation = evaluation
 
-    def __call__(self, args):
-        args = [List(tuple(args))]
-        return (yield from self._fn(args))
+    def __call__(self, argv: Sequence[AS.Value]) -> AS.EvalContext:
+        [seq] = yield from utils.match_arguments(argv, AS.List, 1)
+        return (yield from self._evaluation(seq.value))
 
 
-def build_tbl(proc_functional):
-    def _proc(fun):
-        return proc_functional(fun, allow=Callable)
+class Spread(AS.Function):
+    def __init__(self, evaluation: AS.Evaluation):
+        super().__init__("Spreadly-Receiving ")
+        self._evaluation = evaluation
 
-    def _pipe(funs):
-        funs = yield from map_strict(funs, _proc)
-        return Pipe(funs)
+    def __call__(self, argv: Sequence[AS.Value]) -> AS.EvalContext:
+        argv = [AS.List(tuple(argv))]
+        return (yield from self._evaluation(argv))
 
-    def _collect(funs):
-        check_arity(funs, 1)
-        [fun] = funs
-        return Collect((yield from _proc(fun)))
 
-    def _spread(funs):
-        check_arity(funs, 1)
-        [fun] = funs
-        return Spread((yield from _proc(fun)))
+def build_tbl(
+    proc_functional: utils.ProcFunctional,
+) -> dict[str, AS.Evaluation]:
+    def _proc(
+        fun: AS.Value,
+    ) -> Generator[AS.Value, AS.StrictValue, AS.Evaluation]:
+        _fun = yield from utils.strict_functional(fun)
+        return proc_functional(_fun, general_callable=True)
+
+    def _pipe(funs: Sequence[AS.Value]) -> AS.EvalContext:
+        evaluations = yield from utils.map_strict_with_hook(funs, _proc)
+        return Pipe(evaluations)
+
+    def _collect(funs: Sequence[AS.Value]) -> AS.EvalContext:
+        utils.check_arity(funs, 1)
+        return Collect((yield from _proc(funs[0])))
+
+    def _spread(funs: Sequence[AS.Value]) -> AS.EvalContext:
+        utils.check_arity(funs, 1)
+        return Spread((yield from _proc(funs[0])))
 
     return {
-        'ㄴㄱ': _pipe,  # 연결
-        'ㅁㅂ': _collect,  # 모아받기
-        'ㅂㅂ': _spread,  # 펴받기
+        "ㄴㄱ": _pipe,  # 연결
+        "ㅁㅂ": _collect,  # 모아받기
+        "ㅂㅂ": _spread,  # 펴받기
     }

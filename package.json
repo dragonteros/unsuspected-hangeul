@@ -24,7 +24,7 @@
     "url": "https://github.com/dragonteros/unsuspected-hangeul/issues"
   },
   "scripts": {
-    "test": "mocha",
+    "test": "python test/make_js_test.py && mocha",
     "build": "webpack"
   }
 }

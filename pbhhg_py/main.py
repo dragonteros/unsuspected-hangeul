@@ -1,4 +1,4 @@
-'''
+"""
 함수형 난해한 언어 '평범한 한글'의 구현체입니다.
 
 Updates
@@ -8,118 +8,102 @@ Updates
   * 인수 접근 및 목록, 문자열 등의 인덱싱 행동이 실수를 반올림하는 것에서 정수를 사용하는 것으로 일괄 변경되었습니다.
     - 주의: v0.6의 행동과 호환되지 않습니다.
   * 수학 모듈과 비트 연산 모듈이 추가되었습니다.
-'''
+"""
+import functools
 import sys
+from typing import Generator
 
-from pbhhg_py.abstract_syntax import *
-from pbhhg_py.parse import parse
-from pbhhg_py.interpret import proc_functional, evaluate
-from pbhhg_py.utils import check_type, map_strict
-
-
-def _do_single_IO(io_value):
-    '''Receives an IO and produces non-Expr value.'''
-    check_type(io_value, IO)
-    inst, argv = io_value
-    if inst == 'ㄹ':  # read string
-        try:
-            return String(input(''))
-        except EOFError:
-            return Nil()
-    if inst == 'ㅈㄹ':  # write
-        print(argv[0].value, flush=True)
-        return Nil()
-    if inst == 'ㄱㅅ':  # return
-        return (yield argv[0])
-    if inst == 'ㄱㄹ':  # bind
-        *arguments, binder = argv
-        arguments = yield from map_strict(arguments)
-        check_type(arguments, IO)
-        arguments = yield from map_strict(arguments, do_IO)
-        _fn = yield from proc_functional(binder)
-        result = yield (yield from _fn(arguments))
-        check_type(result, IO)
-        return result
+from pbhhg_py import abstract_syntax as AS
+from pbhhg_py import interpret
+from pbhhg_py import parse
+from pbhhg_py import utils
 
 
-def do_IO(io_value):
-    '''Receives an IO and produces non-IO non-Expr value.'''
-    check_type(io_value, IO)
-    while isinstance(io_value, IO):
-        io_value = yield from _do_single_IO(io_value)
-    return io_value
+def do_IO(
+    value: AS.StrictValue,
+) -> Generator[AS.Value, AS.StrictValue, AS.NonIOStrictValue]:
+    """Receives an IO and produces non-IO non-Expr value."""
+    while isinstance(value, AS.IO):
+        expr = yield from value.continuation(do_IO)
+        value = yield expr
+    return value
 
 
-def formatter(value, format_io=True):
-    '''Converts the value into Python number, bool and str for writing tests'''
+def formatter(
+    value: AS.Value, format_io: bool = True
+) -> Generator[AS.Value, AS.StrictValue, str]:
+    """Converts the value into Python number, bool and str for writing tests"""
     value = yield value
-    if isinstance(value, IO):
-        _format = 'IO({})' if format_io else '{}'
+    if isinstance(value, AS.IO):
+        _format = "IO({})" if format_io else "{}"
         arg = yield from do_IO(value)
         arg = yield from formatter(arg)
         return _format.format(arg)
 
-    _formatter = lambda x: formatter(x, format_io)
-    if isinstance(value, Real):
+    _formatter = functools.partial(formatter, format_io=format_io)
+    if isinstance(value, AS.Real):
         return str(value.value)
-    if isinstance(value, Complex):
+    if isinstance(value, AS.Complex):
         return str(value)
-    if isinstance(value, Boolean):
+    if isinstance(value, AS.Boolean):
         return str(value.value)
-    if isinstance(value, String):
+    if isinstance(value, AS.String):
         return "'{}'".format(value.value)
-    if isinstance(value, Bytes):
-        arg = ''.join(r'\x{:02X}'.format(b) for b in value.value)
+    if isinstance(value, AS.Bytes):
+        arg = "".join(r"\x{:02X}".format(b) for b in value.value)
         return "b'{}'".format(arg)
-    if isinstance(value, List):
-        arg = yield from map_strict(value.value, _formatter)
-        return '[{}]'.format(', '.join(arg))
-    if isinstance(value, Dict):
+    if isinstance(value, AS.List):
+        arg = yield from utils.map_strict_with_hook(value.value, _formatter)
+        return "[{}]".format(", ".join(arg))
+    if isinstance(value, AS.Dict):
         if not value.value:
-            return '{}'
-        keys, values = zip(*value.value.items())
-        keys = yield from map_strict(keys, _formatter)
-        values = yield from map_strict(values, _formatter)
+            return "{}"
+        keys = yield from utils.map_strict_with_hook(
+            value.value.keys(), _formatter
+        )
+        values = yield from utils.map_strict_with_hook(
+            value.value.values(), _formatter
+        )
         d = list(zip(keys, values))
         d = sorted(d, key=lambda pair: pair[0])
-        d = ', '.join("{}: {}".format(k, v) for k, v in d)
-        return '{' + d + '}'
-    if isinstance(value, Function):
+        d = ", ".join("{}: {}".format(k, v) for k, v in d)
+        return "{" + d + "}"
+    if isinstance(value, AS.Function):
         return str(value)
-    if isinstance(value, Nil):
-        return 'Nil'
-    raise ValueError('Unexpected value: {}'.format(value))
+    return "Nil"
 
 
-def main(arg, format_io=True):
-    '''Main procedure. Parses, evaluates, and converts to str.
+def main(arg: str, format_io: bool = True) -> list[str]:
+    """Main procedure. Parses, evaluates, and converts to str.
+
     Args:
         arg: Raw string that encodes a program
         format_io: Whether to format IOs in the form `IO(.)`
+
     Returns:
         A list of strings representing the resulting values
-    '''
-    exprs = parse(arg)
-    env = Env([], [])
-    values = [Expr(expr, env, []) for expr in exprs]
+    """
+    exprs = parse.parse(arg)
+    env = AS.Env([], [])
+    values = [AS.Expr(expr, env) for expr in exprs]
     formatters = [formatter(value, format_io) for value in values]
-    return [evaluate(f) for f in formatters]
+    return [interpret.evaluate(f) for f in formatters]
 
 
-def print_main_with_warning(arg):
+def print_main_with_warning(arg: str):
     values = main(arg)
     if len(values) >= 2:
-        print('[!] Warning: Interpreted {} objects in 1 line.'.format(
-            len(values)))
-    print(' '.join(values), flush=True)
+        print("[!] 주의: 한 줄에 {}개의 객체를 해석했습니다.".format(len(values)))
+    print(" ".join(values), flush=True)
 
 
-if __name__ == '__main__':
-    if len(sys.argv) == 1:  # stdin (user or cat file)
-        print('[Unsuspected Hangeul Interpreter shell. Quit with Ctrl-D.]')
-        print('> ', end='', flush=True)
+if __name__ == "__main__":
+    if len(sys.argv) == 1:  # stdin
+        print("[평범한 한글 해석기. 종료하려면 Ctrl-D를 누르세요.]")
+        print("> ", end="", flush=True)
         for line in sys.stdin:
             print_main_with_warning(line)
-            print('> ', end='', flush=True)
-    elif len(sys.argv) == 2:  # inline
-        print_main_with_warning(sys.argv[1])
+            print("> ", end="", flush=True)
+    elif len(sys.argv) == 2:  # file
+        with open(sys.argv[1], "r", encoding="utf-8") as file:
+            print_main_with_warning(file.read())
