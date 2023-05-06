@@ -26,3 +26,34 @@ class TestIO(TestBase):
     def test_bind(self):
         _test = self._assert_execute
         _test("ㄴ ㄳㅎㄴ (ㄱㅇㄱ ㄴ ㄷㅎㄷ ㄳㅎㄶ)ㄱㅀㄷ", "2")
+
+    # def test_file_descriptor(self):
+    #     _test = self._assert_execute
+    #     _test("ㄱ ㄹ ㄱㄴㅎㄷ (ㄴ ㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷ", "b'a'", "a")
+    #     _test("ㄴ ㅈㄹ ㄱㄴㅎㄷ (b'ㄴㅁㄴ ㄴ ㄴ ㅂ ㅂ ㅂㅎㄷㅎㄷㅎㄴ' ㅈㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷ", "1", "", "a")
+
+    def test_file_read_write(self):
+        _test = self._assert_execute
+        _test(
+            "ㄹㅎㄱ {ㄱㅇㄱ ㅈㄹ ㄱㄴㅎㄷ (ㄱ ㅁㅈ <ㄱ ㄴ ㅂ ㅂ ㅂㅎㄷㅎㄷ> ㄴㄱㅎㄷㅎㄴ ㅈㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "1",
+            "test/test_builtins/testdata/test.txt",
+        )
+        _test(
+            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㄱ ㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "b'\\x30'",
+            "test/test_builtins/testdata/test.txt",
+        )
+        _test(
+            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㄴ ㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "b'\\x30'",
+            "test/test_builtins/testdata/test.txt",
+        )
+
+    def test_file_seek(self):
+        _test = self._assert_execute
+        _test(
+            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㄴ ㄹ ㄱㅇㄱㅎㄷ [ㄱ ㅈ ㄱㅇㄴㅎㄷ {ㄴ ㄹ ㄱㅇㄷㅎㄷ (ㄱㅇㄱ ㄱㅇㄷ ㄷㅎㄷ ㄱㅅㅎㄴㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷㅎ]ㄱㅀㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "b'\\x30\\x30'",
+            "test/test_builtins/testdata/test.txt",
+        )
