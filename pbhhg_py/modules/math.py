@@ -26,9 +26,13 @@ def build_tbl(proc_functional: utils.ProcFunctional):
         arity: int,
         arg_type: type[_ValueT],
         ret_type: Callable[..., AS.StrictValue],
-    ):
-        def _proc(argv: Sequence[AS.Value]) -> AS.EvalContext:
-            argv = yield from utils.match_arguments(argv, arg_type, arity)
+    ) -> AS.Evaluation:
+        def _proc(
+            metadata: AS.Metadata, argv: Sequence[AS.Value]
+        ) -> AS.EvalContext:
+            argv = yield from utils.match_arguments(
+                metadata, argv, arg_type, arity
+            )
             return ret_type(_fn(*(arg.value for arg in argv)))
 
         return _proc
@@ -36,9 +40,13 @@ def build_tbl(proc_functional: utils.ProcFunctional):
     def _wrap2(
         _fn_real: Callable[[float], float],
         _fn_complex: Callable[[complex], complex],
-    ):
-        def _proc(argv: Sequence[AS.Value]) -> AS.EvalContext:
-            [arg] = yield from utils.match_arguments(argv, AS.Number, 1)
+    ) -> AS.Evaluation:
+        def _proc(
+            metadata: AS.Metadata, argv: Sequence[AS.Value]
+        ) -> AS.EvalContext:
+            [arg] = yield from utils.match_arguments(
+                metadata, argv, AS.Number, 1
+            )
             try:
                 assert isinstance(arg.value, int | float)
                 return AS.Float(_fn_real(arg.value))
@@ -50,9 +58,11 @@ def build_tbl(proc_functional: utils.ProcFunctional):
     _atan1 = _wrap2(math.atan, cmath.atan)
     _atan2 = _wrap(math.atan2, 2, AS.Real, AS.Float)
 
-    def _atan(argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def _atan(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
         _fn = _atan2 if len(argv) == 2 else _atan1
-        return (yield from _fn(argv))
+        return (yield from _fn(metadata, argv))
 
     return {
         "ㅅ": {

@@ -3,6 +3,7 @@
 from typing import Literal, Sequence
 
 from pbhhg_py import abstract_syntax as AS
+from pbhhg_py import error
 from pbhhg_py import utils
 
 
@@ -11,18 +12,22 @@ class Codec(AS.Function):
 
     def __init__(
         self,
+        metadata: AS.Metadata,
         scheme: AS.StrictValue,
         num_bytes: AS.StrictValue,
         big_endian: AS.StrictValue | None = None,
     ):
-        [scheme, num_bytes] = utils.check_type([scheme, num_bytes], AS.Integer)
+        super().__init__("Bytes codec utility ")
+        [scheme, num_bytes] = utils.check_type(
+            metadata, [scheme, num_bytes], AS.Integer
+        )
         self.scheme = self.CODEC_TBL[scheme.value]
         self.num_bytes = num_bytes.value
 
         self.big_endian = None
         self.endianness: Literal["big", "little", ""] = ""
         if big_endian:
-            [big_endian] = utils.check_type([big_endian], AS.Boolean)
+            [big_endian] = utils.check_type(metadata, [big_endian], AS.Boolean)
             self.big_endian = big_endian.value
             self.endianness = "big" if self.big_endian else "little"
 
@@ -33,9 +38,19 @@ class Codec(AS.Function):
             self.scheme, self.num_bytes, self.big_endian
         )
 
-    def __call__(self, argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def __call__(
+        self, metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
         argv = yield from utils.map_strict(argv)
-        return self._codec(*argv)
+        try:
+            return self._codec(metadata, *argv)
+        except AS.UnsuspectedHangeulError as err:
+            raise err
+        except Exception as err:
+            raise error.UnsuspectedHangeulValueError(
+                metadata,
+                f"요청된 변환을 수행하지 못했습니다. 변환기: {repr(self)}, 인수: {argv}",
+            )
 
     def _get_codec(self):
         return {
@@ -45,19 +60,27 @@ class Codec(AS.Function):
             "float": self._floating_point_codec,
         }[self.scheme]
 
-    def _unicode_codec(self, argument: AS.StrictValue) -> AS.StrictValue:
+    def _unicode_codec(
+        self, metadata: AS.Metadata, argument: AS.StrictValue
+    ) -> AS.StrictValue:
         encoding = "utf-{}".format(self.num_bytes * 8)
         if self.endianness:
             encoding = "{}-{}e".format(encoding, self.endianness[0])
-        [argument] = utils.check_type([argument], AS.String | AS.Bytes)
+        [argument] = utils.check_type(
+            metadata, [argument], AS.String | AS.Bytes
+        )
         if isinstance(argument, AS.String):
             return AS.Bytes(argument.value.encode(encoding))
         return AS.String(argument.value.decode(encoding))
 
-    def _integer_codec(self, argument: AS.StrictValue) -> AS.StrictValue:
+    def _integer_codec(
+        self, metadata: AS.Metadata, argument: AS.StrictValue
+    ) -> AS.StrictValue:
         endianness = self.endianness or "little"
         signed = self.scheme == "signed"
-        [argument] = utils.check_type([argument], (AS.Integer | AS.Bytes))
+        [argument] = utils.check_type(
+            metadata, [argument], (AS.Integer | AS.Bytes)
+        )
         if isinstance(argument, AS.Integer):
             return AS.Bytes(
                 int.to_bytes(
@@ -69,7 +92,7 @@ class Codec(AS.Function):
         )
 
     def _floating_point_codec(
-        self, argument: AS.StrictValue
+        self, metadata: AS.Metadata, argument: AS.StrictValue
     ) -> AS.StrictValue:
         raise NotImplementedError()
 
@@ -79,9 +102,11 @@ def build_tbl(
 ) -> dict[str, AS.Evaluation]:
     del proc_functional  # Unused
 
-    def _codec(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        utils.check_arity(argv, [2, 3])
+    def _codec(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        utils.check_arity(metadata, argv, [2, 3])
         argv = yield from utils.map_strict(argv)
-        return Codec(*argv)
+        return Codec(metadata, *argv)
 
     return {"ㅂ": _codec}  # 바꾸기

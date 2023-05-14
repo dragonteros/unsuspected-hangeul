@@ -1,0 +1,11 @@
+.vscode
+
+__pycache__
+*.pyc
+
+node_modules
+package-lock.json
+
+test/test.js
+Principles.md
+TODO

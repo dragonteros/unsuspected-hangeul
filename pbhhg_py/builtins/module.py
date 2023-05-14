@@ -13,8 +13,10 @@ class BuiltinModule(AS.Function):
         self.module = module
         self._str = "<Builtin Module {}>".format(" ".join(keys))
 
-    def __call__(self, argv: Sequence[AS.Value]) -> AS.EvalContext:
-        return (yield from self.module(argv))
+    def __call__(
+        self, metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        return (yield from self.module(metadata, argv))
 
 
 _BUITLIN_MODULE_REGISTRY: dict[AS.StrictValue, AS.Value] = {}
@@ -35,10 +37,11 @@ def _load_from_path(filepath: str):
 
     with open(filepath, "r", encoding="utf-8") as reader:
         program = reader.read()
-    exprs = parse.parse(program)
+    exprs = parse.parse(filepath, program)
     if len(exprs) != 1:
-        raise AS.UnsuspectedHangeulError(
-            f"모듈에는 하나의 표현식만 있어야 하는데 {len(exprs)}개의 표현식이 있습니다.", []
+        raise error.UnsuspectedHangeulValueError(
+            exprs[0].metadata,
+            f"모듈에는 하나의 표현식만 있어야 하는데 {len(exprs)}개의 표현식이 있습니다.",
         )
     env = AS.Env([], [])
     module = AS.Expr(exprs[0], env)
@@ -47,7 +50,7 @@ def _load_from_path(filepath: str):
     return module
 
 
-def _load_from_literal(literals: list[int]):
+def _load_from_literal(metadata: AS.Metadata, literals: list[int]):
     """Loads a module at a path described by `literals`
 
     Args:
@@ -63,20 +66,20 @@ def _load_from_literal(literals: list[int]):
         module = AS.Dict(_BUITLIN_MODULE_REGISTRY)
         for idx in literals[1:]:
             if not isinstance(module, AS.Dict):
-                raise error.UnsuspectedHangeulNotFoundError(errmsg)
+                raise error.UnsuspectedHangeulNotFoundError(metadata, errmsg)
             module = module.value[AS.Integer(idx)]
         return module
 
     # Search files
-    filepath = _search_file_from_literal(literals)
+    filepath = _search_file_from_literal(metadata, literals)
     if filepath is None:
-        raise error.UnsuspectedHangeulNotFoundError(errmsg)
+        raise error.UnsuspectedHangeulNotFoundError(metadata, errmsg)
     module = _load_from_path(filepath)
     return module
 
 
 def _search_file_from_literal(
-    literals: list[int], location: str = "."
+    metadata: AS.Metadata, literals: list[int], location: str = "."
 ) -> str | None:
     if not literals:
         if not os.path.isfile(location):
@@ -89,19 +92,21 @@ def _search_file_from_literal(
         if not _matches_literal(entry, cur):
             continue
         search_path = os.path.join(location, entry)
-        result = _search_file_from_literal(sub, search_path)
+        result = _search_file_from_literal(metadata, sub, search_path)
         if result:
             results.append(result)
 
     if len(results) > 1:  # maybe filter by extension?
         raise error.UnsuspectedHangeulImportError(
-            f"{location}에 정수 리터럴열 {literals}에 맞는 모듈이 {len(results)}개 있어 모호합니다."
+            metadata,
+            f"{location}에 정수 리터럴열 {literals}에 맞는 모듈이 "
+            f"{len(results)}개 있어 모호합니다.",
         )
     return results[0] if results else None
 
 
 def _matches_literal(string: str, literal: int):
-    string = parse.normalize(string)
+    string = " ".join(parse.normalize(string)).strip()
     try:
         parsed_literal = parse.parse_number(string)
     except ValueError:
@@ -119,10 +124,13 @@ def _get_literals(exprs: Sequence[AS.Value]) -> list[int] | None:
     return literals
 
 
+_CONSTANT_TYPES = int | float | complex | bool | str | bytes
+
+
 def _construct_builtin_module(
-    data: AS.StrictValue
+    data: _CONSTANT_TYPES
     | AS.Evaluation
-    | utils.DeepDict[str, AS.StrictValue | AS.Evaluation],
+    | utils.DeepDict[str, _CONSTANT_TYPES | AS.Evaluation],
     keys: list[str],
 ):
     """Recursively iterates over dict to convert python values
@@ -136,7 +144,7 @@ def _construct_builtin_module(
 
 
 def _construct_builtin_modules(
-    data: utils.DeepDict[str, AS.StrictValue | AS.Evaluation],
+    data: utils.DeepDict[str, _CONSTANT_TYPES | AS.Evaluation],
     keys: list[str],
 ) -> AS.Dict:
     """Recursively iterates over dict to convert python values
@@ -159,15 +167,17 @@ def build_tbl(
         data: dict[str, AS.Evaluation] = module.build_tbl(proc_functional)
         return _construct_builtin_modules(data, ["ㅂ"])
 
-    def _import(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        utils.check_min_arity(argv, 1)
+    def _import(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        utils.check_min_arity(metadata, argv, 1)
         literals = _get_literals(argv)
         if literals is not None:
-            return _load_from_literal(literals)
+            return _load_from_literal(metadata, literals)
 
-        utils.check_arity(argv, 1)
+        utils.check_arity(metadata, argv, 1)
         filepath = yield argv[0]
-        [filepath] = utils.check_type([filepath], AS.String)
+        [filepath] = utils.check_type(metadata, [filepath], AS.String)
         return _load_from_path(filepath.value)
 
     for name in modules.__all__:

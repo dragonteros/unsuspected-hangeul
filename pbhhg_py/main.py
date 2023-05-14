@@ -10,7 +10,6 @@ Updates
   * 수학 모듈과 비트 연산 모듈이 추가되었습니다.
 """
 import functools
-import sys
 from typing import Generator
 
 from pbhhg_py import abstract_syntax as AS
@@ -70,40 +69,25 @@ def formatter(
         return "{" + d + "}"
     if isinstance(value, AS.Function):
         return str(value)
+    if isinstance(value, AS.ErrorValue):
+        arg = yield from utils.map_strict_with_hook(value.value, _formatter)
+        return f"<예외: {(', '.join(arg))}>"
     return "Nil"
 
 
-def main(arg: str, format_io: bool = True) -> list[str]:
+def main(filename: str, program: str, format_io: bool = True) -> list[str]:
     """Main procedure. Parses, evaluates, and converts to str.
 
     Args:
-        arg: Raw string that encodes a program
+        filename: File name of the program.
+        arg: Raw string that encodes the program.
         format_io: Whether to format IOs in the form `IO(.)`
 
     Returns:
         A list of strings representing the resulting values
     """
-    exprs = parse.parse(arg)
+    exprs = parse.parse(filename, program)
     env = AS.Env([], [])
     values = [AS.Expr(expr, env) for expr in exprs]
     formatters = [formatter(value, format_io) for value in values]
     return [interpret.evaluate(f) for f in formatters]
-
-
-def print_main_with_warning(arg: str):
-    values = main(arg)
-    if len(values) >= 2:
-        print("[!] 주의: 한 줄에 {}개의 객체를 해석했습니다.".format(len(values)))
-    print(" ".join(values), flush=True)
-
-
-if __name__ == "__main__":
-    if len(sys.argv) == 1:  # stdin
-        print("[평범한 한글 해석기. 종료하려면 Ctrl-D를 누르세요.]")
-        print("> ", end="", flush=True)
-        for line in sys.stdin:
-            print_main_with_warning(line)
-            print("> ", end="", flush=True)
-    elif len(sys.argv) == 2:  # file
-        with open(sys.argv[1], "r", encoding="utf-8") as file:
-            print_main_with_warning(file.read())

@@ -5,11 +5,13 @@ from pbhhg_py import error
 from pbhhg_py import utils
 
 
-def _parse_str_to_number(argv: Sequence[AS.StrictValue]):
-    argv = utils.match_defaults(argv, 2, [AS.Integer(10)])
+def _parse_str_to_number(
+    metadata: AS.Metadata, argv: Sequence[AS.StrictValue]
+):
+    argv = utils.match_defaults(metadata, argv, 2, [AS.Integer(10)])
     string, base = argv
-    [string] = utils.check_type([string], AS.String)
-    [base] = utils.check_type([base], AS.Integer)
+    [string] = utils.check_type(metadata, [string], AS.String)
+    [base] = utils.check_type(metadata, [base], AS.Integer)
     return string.value, base.value
 
 
@@ -18,10 +20,12 @@ def build_tbl(
 ) -> dict[str, AS.Evaluation]:
     del proc_functional  # Unused
 
-    def _dict(argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def _dict(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
         if len(argv) % 2 == 1:
             raise error.UnsuspectedHangeulValueError(
-                f"ㅅㅈ 함수는 짝수 개의 인수를 받지만 {len(argv)}개의 인수가 들어왔습니다."
+                metadata, f"ㅅㅈ 함수는 짝수 개의 인수를 받지만 {len(argv)}개의 인수가 들어왔습니다."
             )
         keys, values = argv[0::2], argv[1::2]
         keys = yield from utils.map_strict_with_hook(
@@ -29,13 +33,18 @@ def build_tbl(
         )
         return AS.Dict({k: v for k, v in zip(keys, values)})
 
-    def _list(argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def _list(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        del metadata  # Unused
         return AS.List(tuple(argv))
         yield
 
-    def _string(argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def _string(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
         argv = yield from utils.match_arguments(
-            argv, AS.Number | AS.String, [0, 1]
+            metadata, argv, AS.Number | AS.String, [0, 1]
         )
         if len(argv) == 0:
             return AS.String("")
@@ -45,56 +54,92 @@ def build_tbl(
             return AS.String(str(argv[0]))
         return argv[0]
 
-    def _integer(argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def _integer(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
         argv = yield from utils.match_arguments(
-            argv, AS.Real | AS.String, [1, 2]
+            metadata, argv, AS.Real | AS.String, [1, 2]
         )
         if utils.is_type([argv[0]], AS.Real):
-            utils.check_arity(argv, 1)
+            utils.check_arity(metadata, argv, 1)
             return AS.Integer(int(argv[0].value))
 
-        string, base = _parse_str_to_number(argv)
-        return AS.Integer(int(string, base))
+        string, base = _parse_str_to_number(metadata, argv)
+        try:
+            return AS.Integer(int(string, base))
+        except ValueError:
+            raise error.UnsuspectedHangeulValueError(
+                metadata, f"문자열 '{string}'을 정수값으로 변환할 수 없습니다."
+            ) from None
 
-    def _float(argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def _float(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
         argv = yield from utils.match_arguments(
-            argv, AS.Real | AS.String, [1, 2]
+            metadata, argv, AS.Real | AS.String, [1, 2]
         )
         if utils.is_type([argv[0]], AS.Real):
-            utils.check_arity(argv, 1)
+            utils.check_arity(metadata, argv, 1)
             return AS.Float(float(argv[0].value))
 
-        string, base = _parse_str_to_number(argv)
+        string, base = _parse_str_to_number(metadata, argv)
         if base == 10:
-            return AS.Float(float(string))
-        integer, frac = (string.strip().split(".") + [""])[:2]
-        significant = int(integer + frac, base=base)
+            try:
+                return AS.Float(float(string))
+            except ValueError:
+                raise error.UnsuspectedHangeulValueError(
+                    metadata, f"문자열 '{string}'을 실수값으로 변환할 수 없습니다."
+                ) from None
+        integer, frac = utils.match_defaults(
+            metadata, string.strip().split("."), 2, [""]
+        )
+        try:
+            significant = int(integer + frac, base=base)
+        except ValueError:
+            raise error.UnsuspectedHangeulValueError(
+                metadata, f"문자열 '{string}'을 실수값으로 변환할 수 없습니다."
+            ) from None
         return AS.Float(significant / base ** len(frac))
 
-    def _complex(argv: Sequence[AS.Value]) -> AS.EvalContext:
+    def _complex(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
         argv = yield from utils.match_arguments(
-            argv, AS.Number | AS.String, [1, 2]
+            metadata, argv, AS.Number | AS.String, [1, 2]
         )
         if utils.is_type(argv, AS.Number):
-            real, imag = utils.match_defaults(argv, 2, [AS.Float(0.0)])
+            real, imag = utils.match_defaults(
+                metadata, argv, 2, [AS.Float(0.0)]
+            )
             return AS.Complex(complex(real.value, imag.value))
 
-        argv = utils.check_type(argv, AS.String)
-        utils.check_arity(argv, 1)
+        argv = utils.check_type(metadata, argv, AS.String)
+        utils.check_arity(metadata, argv, 1)
         arg = argv[0].value.replace("i", "j")
         return AS.Complex(complex(arg))
 
-    def _nil(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        utils.check_arity(argv, 0)
+    def _nil(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        utils.check_arity(metadata, argv, 0)
         return AS.Nil()
         yield
 
+    def _exception(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        argv = yield from utils.map_strict(argv)
+        message = f'사용자 예외: {", ".join(map(str, argv))}'
+        return AS.ErrorValue((metadata,), message, tuple(argv))
+        yield
+
     return {
-        "ㅅㅈ": _dict,  # 사전
+        "ㄷㅂ": _exception,  # 뜻밖
         "ㅁㄹ": _list,  # 목록
         "ㅁㅈ": _string,  # 문자열
-        "ㅈㅅ": _integer,  # 정수
-        "ㅅㅅ": _float,  # 실수
-        "ㅂㅅ": _complex,  # 복소수
         "ㅂㄱ": _nil,  # 빈값
+        "ㅂㅅ": _complex,  # 복소수
+        "ㅅㅅ": _float,  # 실수
+        "ㅅㅈ": _dict,  # 사전
+        "ㅈㅅ": _integer,  # 정수
     }

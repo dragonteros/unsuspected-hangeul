@@ -18,7 +18,7 @@ def _extended_gcd(a: int, b: int):
     return b, x, y
 
 
-def _modular_inverse(a: int, mod: int):
+def _modular_inverse(metadata: AS.Metadata, a: int, mod: int):
     a = a % mod
     try:
         return pow(a, -1, mod)
@@ -27,7 +27,7 @@ def _modular_inverse(a: int, mod: int):
         if g == 1:
             return inverse % mod
     raise error.UnsuspectedHangeulArithmeticError(
-        f"{mod}를 법으로 한 {a}의 역원이 존재하지 않습니다."
+        metadata, f"{mod}를 법으로 한 {a}의 역원이 존재하지 않습니다."
     )
 
 
@@ -36,70 +36,113 @@ def build_tbl(
 ) -> dict[str, AS.Evaluation]:
     del proc_functional  # Unused
 
-    def _multiply(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        utils.check_min_arity(argv, 1)
+    def _all(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        # short-circuiting
+        for arg in argv:
+            [arg] = yield from utils.match_arguments(
+                metadata, [arg], AS.Boolean
+            )
+            if not arg.value:
+                return AS.Boolean(False)
+        return AS.Boolean(True)
+
+    def _multiply(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        utils.check_min_arity(metadata, argv, 1)
+        first = yield argv[0]
+        [first] = utils.check_type(metadata, [first], AS.Number | AS.Boolean)
+        if isinstance(first, AS.Boolean):
+            return (yield from _all(metadata, argv))
+
+        rest = yield from utils.match_arguments(metadata, argv[1:], AS.Number)
+        values = (arg.value for arg in [first, *rest])
+        return utils.guessed_wrap(
+            functools.reduce(operator.mul, values)
+        )  # No init value
+
+    def _any(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        # short-circuiting
+        for arg in argv:
+            [arg] = yield from utils.match_arguments(
+                metadata, [arg], AS.Boolean
+            )
+            if arg.value:
+                return AS.Boolean(True)
+        return AS.Boolean(False)
+
+    def _add(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        utils.check_min_arity(metadata, argv, 1)
+        first = yield argv[0]
+        [first] = utils.check_type(
+            metadata, [first], AS.Number | AS.Boolean | AS.Sequence | AS.Dict
+        )
+        if isinstance(first, AS.Boolean):
+            return (yield from _any(metadata, argv))
+
         argv = yield from utils.map_strict(argv)
-        argv = utils.check_type(argv, AS.Number | AS.Boolean)
-        if utils.is_type(argv, AS.Number):
-            values = (arg.value for arg in argv)
-            return utils.guessed_wrap(
-                functools.reduce(operator.mul, values)
-            )  # No init
-
-        utils.check_same_type(argv)
-        return AS.Boolean(all(a.value for a in argv))
-
-    def _add(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        utils.check_min_arity(argv, 1)
-        argv = yield from utils.map_strict(argv)
-        utils.check_type(argv, AS.Number | AS.Boolean | AS.Sequence | AS.Dict)
-        if utils.is_type(argv, AS.Number):
-            return utils.guessed_wrap(sum(a.value for a in argv))
-
-        utils.check_same_type(argv)
-        if utils.is_type(argv, AS.Boolean):
-            return AS.Boolean(any(a.value for a in argv))
-        elif utils.is_type(argv, AS.List):
+        if isinstance(first, AS.List):
+            argv = utils.check_type(metadata, argv, AS.List)
             return AS.List(tuple(item for seq in argv for item in seq.value))
-        elif utils.is_type(argv, AS.String):
+        if isinstance(first, AS.String):
+            argv = utils.check_type(metadata, argv, AS.String)
             return AS.String("".join(a.value for a in argv))
-        elif utils.is_type(argv, AS.Bytes):
+        if isinstance(first, AS.Bytes):
+            argv = utils.check_type(metadata, argv, AS.Bytes)
             return AS.Bytes(b"".join(a.value for a in argv))
-        elif utils.is_type(argv, AS.Dict):
+        if isinstance(first, AS.Dict):
+            argv = utils.check_type(metadata, argv, AS.Dict)
             return AS.Dict({k: a.value[k] for a in argv for k in a.value})
-        assert False
+        argv = utils.check_type(metadata, argv, AS.Number)
+        return utils.guessed_wrap(sum(a.value for a in argv))
 
-    def _exponentiate(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        argv = yield from utils.match_arguments(argv, AS.Number, [2, 3])
+    def _exponentiate(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        argv = yield from utils.match_arguments(
+            metadata, argv, AS.Number, [2, 3]
+        )
         if len(argv) == 2:
             base, exponent = argv
             try:
                 return utils.guessed_wrap(base.value**exponent.value)
             except ZeroDivisionError:
                 raise error.UnsuspectedHangeulDivisionError(
-                    "0의 역수를 구하려고 했습니다."
-                )
+                    metadata, "0의 역수를 구하려고 했습니다."
+                ) from None
 
-        argv = utils.check_type(argv, AS.Integer)
+        argv = utils.check_type(metadata, argv, AS.Integer)
         base, exponent, modulo = [a.value for a in argv]
         if exponent < 0:
-            base = _modular_inverse(base, modulo)
+            base = _modular_inverse(metadata, base, modulo)
             exponent = -exponent
         return utils.guessed_wrap(pow(base, exponent, modulo))
 
-    def _integer_division(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        argv = yield from utils.match_arguments(argv, AS.Real, 2)
+    def _integer_division(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        argv = yield from utils.match_arguments(metadata, argv, AS.Real, 2)
         dividend, divider = [arg.value for arg in argv]
         try:
             value = dividend // divider
             if value < 0:
                 value = -(-dividend // divider)
         except ZeroDivisionError:
-            raise error.UnsuspectedHangeulDivisionError("0으로 나누려고 했습니다.")
+            raise error.UnsuspectedHangeulDivisionError(
+                metadata, "0으로 나누려고 했습니다."
+            ) from None
         return utils.guessed_wrap(value)
 
-    def _remainder(argv: Sequence[AS.Value]) -> AS.EvalContext:
-        argv = yield from utils.match_arguments(argv, AS.Real, 2)
+    def _remainder(
+        metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> AS.EvalContext:
+        argv = yield from utils.match_arguments(metadata, argv, AS.Real, 2)
         if utils.is_type(argv, AS.Integer):
             dividend, divider = [arg.value for arg in argv]
             try:
@@ -108,7 +151,9 @@ def build_tbl(
                 else:
                     return AS.Integer(-(-dividend % divider))
             except ZeroDivisionError:
-                raise error.UnsuspectedHangeulDivisionError("0으로 나누려고 했습니다.")
+                raise error.UnsuspectedHangeulDivisionError(
+                    metadata, "0으로 나누려고 했습니다."
+                ) from None
         dividend, divider = [arg.value for arg in argv]
         return AS.Float(math.fmod(dividend, divider))
 

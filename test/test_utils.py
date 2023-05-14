@@ -32,13 +32,14 @@ class TestUtils(TestBase):
         self.assertFalse(is_same_type([Integer(3), Float(4.0)]))
 
     def test_match_defaults(self):
-        self.assertEqual(match_defaults([], 0), [])
-        self.assertEqual(match_defaults([], 1, [1]), [1])
-        self.assertEqual(match_defaults([0], 1, [1]), [0])
-        self.assertEqual(match_defaults([], 2, [1, 2]), [1, 2])
-        self.assertEqual(match_defaults([0], 3, [1, 2]), [0, 1, 2])
-        self.assertEqual(match_defaults([0], 2, [1, 2]), [0, 2])
-        self.assertEqual(match_defaults([0, 1], 2, [1, 2]), [0, 1])
+        metadata = Metadata("<test file>", 0, 0, 0, "")
+        self.assertEqual(match_defaults(metadata, [], 0), [])
+        self.assertEqual(match_defaults(metadata, [], 1, [1]), [1])
+        self.assertEqual(match_defaults(metadata, [0], 1, [1]), [0])
+        self.assertEqual(match_defaults(metadata, [], 2, [1, 2]), [1, 2])
+        self.assertEqual(match_defaults(metadata, [0], 3, [1, 2]), [0, 1, 2])
+        self.assertEqual(match_defaults(metadata, [0], 2, [1, 2]), [0, 2])
+        self.assertEqual(match_defaults(metadata, [0, 1], 2, [1, 2]), [0, 1])
 
     def test_guessed_wrap(self):
         self.assertEqual(guessed_wrap(0), Integer(0))

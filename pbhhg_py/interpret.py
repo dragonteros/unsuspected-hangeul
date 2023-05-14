@@ -1,3 +1,4 @@
+import abc
 import dataclasses
 from typing import Generator, Generic, Sequence, TypeVar
 
@@ -50,8 +51,8 @@ class StackFrameBase(Generic[_T]):
 
         except StopIteration as result:
             return ComputationResult(result.value)
-        except AS.UnsuspectedHangeulError as e:
-            return ComputationResult(e)
+        except AS.UnsuspectedHangeulError as err:
+            return ComputationResult(err)
 
 
 class StackFrame(StackFrameBase[AS.Value]):
@@ -71,12 +72,34 @@ class StackFrame(StackFrameBase[AS.Value]):
         return request_or_result
 
 
-def evaluate(coroutine: Generator[AS.Value, AS.StrictValue, _T]) -> _T:
+class DebuggerBase(abc.ABC):
+    @abc.abstractmethod
+    def before_eval(self, depth: int, expr: AS.Expr) -> None:
+        del depth, expr  # Unused
+        raise NotImplementedError
+
+    @abc.abstractmethod
+    def after_eval(
+        self,
+        depth: int,
+        expr: AS.Expr,
+        result: AS.StrictValue | AS.UnsuspectedHangeulError,
+    ) -> None:
+        del depth, expr, result  # Unused
+        raise NotImplementedError
+
+
+def evaluate(
+    coroutine: Generator[AS.Value, AS.StrictValue, _T],
+    debugger: DebuggerBase | None = None,
+) -> _T:
     """Executes coroutine and provides strictly evaluated values
     as it requests."""
     MAX_STACK_SIZE = 5000
     head = StackFrameBase(coroutine)
     tail: list[StackFrame] = []
+    debug_stack: list[list[AS.Expr]] = []  # same index as tail
+    depth = 0
 
     response: ComputationResponse | None = None
     while True:
@@ -88,21 +111,48 @@ def evaluate(coroutine: Generator[AS.Value, AS.StrictValue, _T]) -> _T:
             if isinstance(request_or_result, ComputationRequest):
                 tail.append(StackFrame(request_or_result))
                 response = None
+
+                if debugger:
+                    depth += 1
+                    debug_stack.append([request_or_result.value])
+                    debugger.before_eval(depth, request_or_result.value)
+
             elif isinstance(request_or_result.value, AS.Expr):
                 request = ComputationRequest(request_or_result.value)
                 tail[-1] = StackFrame(request)
                 response = None
+
+                if debugger:
+                    depth += 1
+                    debug_stack[-1].append(request_or_result.value)
+                    debugger.before_eval(depth, request_or_result.value)
+
             else:
                 tail.pop()
                 response = ComputationResponse(request_or_result.value)
+
+                if debugger:
+                    waiting_exprs = debug_stack.pop()
+                    for expr in reversed(waiting_exprs):
+                        debugger.after_eval(
+                            depth, expr, request_or_result.value
+                        )
+                        depth -= 1
         else:
             request_or_result = head.communicate(response)
             if isinstance(request_or_result, ComputationRequest):
                 tail.append(StackFrame(request_or_result))
                 response = None
-            else:
+
+                if debugger:
+                    depth += 1
+                    debug_stack.append([request_or_result.value])
+                    debugger.before_eval(depth, request_or_result.value)
+
+            else:  # all finished
                 result = request_or_result.value
                 if isinstance(result, AS.UnsuspectedHangeulError):
+                    # TODO(dragonteros): handle debugging at outer-most frame
                     raise result
                 return result
 
@@ -136,24 +186,26 @@ def interpret(value: AS.Expr) -> AS.EvalContext:
         try:
             return env.funs[-expr.rel - 1]
         except IndexError:
-            raise error.UnsuspectedHangeulOutOfRangeError("함수 참조의 범위를 벗어났습니다.")
+            raise error.UnsuspectedHangeulOutOfRangeError(
+                expr.metadata, "함수 참조의 범위를 벗어났습니다."
+            )
 
     elif isinstance(expr, AS.ArgRef):
         assert len(env.funs) == len(env.args)
-        relA, relF = expr
+        relA, relF, metadata = expr
         try:
             args = env.args[-relF - 1]
         except IndexError:
             raise error.UnsuspectedHangeulOutOfRangeError(
-                "존재하지 않는 함수에 대한 인수 참조를 시도했습니다."
+                metadata, "존재하지 않는 함수에 대한 인수 참조를 시도했습니다."
             )
 
         relA = yield AS.Expr(relA, env)
-        [relA] = utils.check_type([relA], AS.Integer)
+        [relA] = utils.check_type(metadata, [relA], AS.Integer)
 
         if not 0 <= relA.value < len(args):
             raise error.UnsuspectedHangeulOutOfRangeError(
-                f"{relA.value}번째 인수를 참조하는데 {len(args)}개의 인수만 받았습니다."
+                metadata, f"{relA.value}번째 인수를 참조하는데 {len(args)}개의 인수만 받았습니다."
             )
         return args[relA.value]
 
@@ -165,15 +217,22 @@ def interpret(value: AS.Expr) -> AS.EvalContext:
         new_env.funs.append(closure)
         return closure
 
-    fun, argv = expr
+    fun, argv, metadata = expr
     fun = AS.Expr(fun, env)
     argv = [AS.Expr(arg, env) for arg in argv]
-    fun = yield from utils.strict_functional(fun)
-    recipe = proc_functional(fun, general_callable=True)
-    return (yield from recipe(argv))
+    fun = yield from utils.strict_functional(metadata, fun)
+    recipe = proc_functional(metadata, fun, general_callable=True)
+    return (yield from recipe(metadata, argv))
+
+
+def strict(
+    value: AS.Value,
+) -> Generator[AS.Value, AS.StrictValue, AS.StrictValue]:
+    return (yield value)
 
 
 def proc_functional(
+    metadata: AS.Metadata,
     fun: AS.StrictValue | AS.BuiltinFunction,
     general_callable: bool = False,
 ) -> AS.Evaluation:
@@ -186,16 +245,18 @@ def proc_functional(
         A generator that receives argument list and returns maybe-Expr value.
     """
     if isinstance(fun, AS.BuiltinFunction):
-        return find_builtin(fun.literal.value)
+        return find_builtin(metadata, fun.literal.value)
 
     allow = AS.Callable if general_callable else AS.Function
-    [fun] = utils.check_type([fun], allow)
+    [fun] = utils.check_type(metadata, [fun], allow)
 
     if isinstance(fun, AS.Boolean):
         value = fun.value
 
-        def _proc_boolean(argv: Sequence[AS.Value]) -> AS.EvalContext:
-            utils.check_arity(argv, 2)
+        def _proc_boolean(
+            metadata: AS.Metadata, argv: Sequence[AS.Value]
+        ) -> AS.EvalContext:
+            utils.check_arity(metadata, argv, 2)
             return argv[0 if value else 1]
             yield
 
@@ -203,44 +264,54 @@ def proc_functional(
 
     elif isinstance(fun, AS.Dict):
 
-        def _proc_dict(argv: Sequence[AS.Value]) -> AS.EvalContext:
-            utils.check_arity(argv, 1)
+        def _proc_dict(
+            metadata: AS.Metadata, argv: Sequence[AS.Value]
+        ) -> AS.EvalContext:
+            utils.check_arity(metadata, argv, 1)
             arg = yield from utils.recursive_strict(argv[0])
             try:
                 return fun.value[arg]
             except KeyError:
                 raise error.UnsuspectedHangeulNotFoundError(
-                    f"사전에 다음 표제가 없습니다: {arg}"
-                )
+                    metadata, f"사전에 다음 표제가 없습니다: {arg}"
+                ) from None
 
         return _proc_dict
 
     elif isinstance(fun, AS.Complex):
 
-        def _proc_complex(argv: Sequence[AS.Value]) -> AS.EvalContext:
-            [arg] = yield from utils.match_arguments(argv, AS.Integer, 1)
+        def _proc_complex(
+            metadata: AS.Metadata, argv: Sequence[AS.Value]
+        ) -> AS.EvalContext:
+            [arg] = yield from utils.match_arguments(
+                metadata, argv, AS.Integer, 1
+            )
             num, idx = fun.value, arg.value
             if idx in [0, 1]:
                 return AS.Float(num.real if idx == 0 else num.imag)
             raise error.UnsuspectedHangeulValueError(
-                f"복소수 객체의 {idx}번째 요소를 접근하려고 했습니다."
+                metadata, f"복소수 객체의 {idx}번째 요소를 접근하려고 했습니다."
             )
 
         return _proc_complex
 
-    elif isinstance(fun, AS.Sequence):
+    elif isinstance(fun, AS.Sequence | AS.ErrorValue):
         seq = fun.value
 
-        def _proc_seq(argv: Sequence[AS.Value]) -> AS.EvalContext:
-            [arg] = yield from utils.match_arguments(argv, AS.Integer, 1)
+        def _proc_seq(
+            metadata: AS.Metadata, argv: Sequence[AS.Value]
+        ) -> AS.EvalContext:
+            [arg] = yield from utils.match_arguments(
+                metadata, argv, AS.Integer, 1
+            )
             idx = arg.value
             if isinstance(seq, tuple):
                 try:
                     return seq[idx]
                 except IndexError:
                     raise error.UnsuspectedHangeulOutOfRangeError(
-                        f"목록의 범위 밖의 번호를 요청했습니다."
-                    )
+                        metadata, "목록의 범위 밖의 번호를 요청했습니다."
+                    ) from None
             return utils.guessed_wrap(seq[idx:][:1])
 
         return _proc_seq
@@ -248,20 +319,21 @@ def proc_functional(
     return fun
 
 
-def find_builtin(id: int):
+def find_builtin(metadata: AS.Metadata, func_id: int):
     """Finds the recipe function corresponding to the builtin function id.
 
     Args:
+        metadata: Source metadata of the caller.
         id: Built-in Function ID
 
     Returns:
         Corresponding function that takes arguments.
     """
-    inst = parse.encode_number(id)
+    inst = parse.encode_number(func_id)
     if inst in BUITLINS:
         return BUITLINS[inst]
     raise error.UnsuspectedHangeulTypeError(
-        f"{inst}라는 이름의 기본 제공 함수를 찾지 못했습니다."
+        metadata, f"{inst}라는 이름의 기본 제공 함수를 찾지 못했습니다."
     )
 
 

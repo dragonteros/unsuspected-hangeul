@@ -1,33 +1,58 @@
 from __future__ import annotations
 
 import abc
-from math import isclose
-from math import isfinite
+import math
 import typing
 from typing import NamedTuple
+import unicodedata
+
+
+def _get_width(s: str) -> int:
+    return sum(2 if unicodedata.east_asian_width(c) in "FW" else 1 for c in s)
+
+
+class Metadata(NamedTuple):
+    filename: str
+    line_no: int
+    start_col: int
+    end_col: int
+    line: str  # whole line
+
+    def __str__(self) -> str:
+        return (
+            self.line
+            + "\n"
+            + " " * _get_width(self.line[: self.start_col])
+            + "^" * _get_width(self.line[self.start_col : self.end_col])
+        )
 
 
 # AST
 class Literal(NamedTuple):
     value: int
+    metadata: Metadata
 
 
 class FunRef(NamedTuple):
     rel: int
+    metadata: Metadata
 
 
 class ArgRef(NamedTuple):
     relA: AST
     relF: int
+    metadata: Metadata
 
 
 class FunDef(NamedTuple):
     body: AST
+    metadata: Metadata
 
 
 class FunCall(NamedTuple):
     fun: AST
     argv: tuple[AST, ...]
+    metadata: Metadata
 
 
 AST = Literal | FunRef | ArgRef | FunDef | FunCall
@@ -38,15 +63,22 @@ class Env(NamedTuple):
     funs: list[Closure]
     args: list[tuple[Value, ...]]
 
-    def __hash__(self) -> int:
-        return hash((tuple(self.funs), tuple(self.args)))
-
 
 # Exception
 class UnsuspectedHangeulError(Exception):
-    def __init__(self, message: str, argv: typing.Sequence[StrictValue]):
-        super().__init__(message)
-        self.argv = tuple(argv)  # Exposed to user code
+    def __init__(
+        self,
+        err: ErrorValue,
+    ):
+        message = ""
+        for metadata in err.metadatas:
+            message += (
+                f"{metadata.filename} {metadata.line_no+1}번줄 "
+                f"{metadata.start_col + 1}~{metadata.end_col+1}번째 글자:\n"
+                f"{str(metadata)}\n"
+            )
+        super().__init__(f"{message}\n{err.message}")
+        self.err = err  # Exposed to user code
 
 
 # Values
@@ -86,12 +118,21 @@ class Bytes(NamedTuple):
         return hash(("평범한 한글/바이트열", self.value))
 
 
+class ErrorValue(NamedTuple):
+    metadatas: tuple[Metadata, ...]
+    message: str
+    value: tuple[StrictValue, ...]
+
+    def __hash__(self) -> int:
+        return hash(("평범한 한글/예외", self.metadatas, self.value))
+
+
 class Nil(NamedTuple):
     pass
 
 
 def _to_int_if_possible(num: float) -> int | float:
-    if isfinite(num) and isclose(num, int(num), abs_tol=1e-16):
+    if math.isfinite(num) and math.isclose(num, int(num), abs_tol=1e-16):
         return int(num)
     return num
 
@@ -140,7 +181,7 @@ class IO:
         return hash(self) == hash(other)
 
 
-class BuiltinFunction(NamedTuple):
+class BuiltinFunction(NamedTuple):  # Is not a value
     literal: Literal
 
 
@@ -155,7 +196,9 @@ class Function(abc.ABC):
         return self._str
 
     @abc.abstractmethod
-    def __call__(self, argv: typing.Sequence[Value]) -> EvalContext:
+    def __call__(
+        self, metadata: Metadata, argv: typing.Sequence[Value]
+    ) -> EvalContext:
         raise NotImplementedError
 
 
@@ -165,7 +208,10 @@ class Closure(Function):
         self.env = env
         self._str = "<Closure created at depth {}>".format(len(env.args))
 
-    def __call__(self, argv: typing.Sequence[Value]) -> EvalContext:
+    def __call__(
+        self, metadata: Metadata, argv: typing.Sequence[Value]
+    ) -> EvalContext:
+        del metadata  # Unused
         canned_funs, canned_args = self.env
         new_env = Env(canned_funs, canned_args + [tuple(argv)])
         return Expr(self.body, new_env)
@@ -197,14 +243,14 @@ class Expr:
         self.cache_box = CacheBox()
 
     def __hash__(self):
-        return hash((self.expr, self.env))
+        return hash((self.expr, id(self.env)))
 
 
 # Collection
 Real = Integer | Float
 Number = Real | Complex
 Sequence = List | String | Bytes
-Callable = Function | Boolean | Sequence | Dict | Complex
+Callable = Function | Boolean | Sequence | Dict | Complex | ErrorValue
 
 NonIOStrictValue = Number | Callable | Nil
 StrictValue = NonIOStrictValue | IO
@@ -216,4 +262,4 @@ EvalContext = typing.Generator[
     StrictValue,
     Value,
 ]
-Evaluation = typing.Callable[[typing.Sequence[Value]], EvalContext]
+Evaluation = typing.Callable[[Metadata, typing.Sequence[Value]], EvalContext]

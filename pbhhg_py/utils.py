@@ -25,6 +25,7 @@ DeepDict = Mapping[_T, _U | "DeepDict[_T, _U]"]
 class ProcFunctional(Protocol):
     def __call__(
         self,
+        metadata: AS.Metadata,
         fun: AS.StrictValue | AS.BuiltinFunction,
         general_callable: bool = False,
     ) -> AS.Evaluation:
@@ -32,13 +33,14 @@ class ProcFunctional(Protocol):
 
 
 def strict_functional(
+    metadata: AS.Metadata,
     fun: AS.Value,
 ) -> Generator[AS.Value, AS.StrictValue, AS.Callable | AS.BuiltinFunction]:
     if isinstance(fun, AS.Expr) and isinstance(fun.expr, AS.Literal):
         return AS.BuiltinFunction(fun.expr)
 
     fun = yield fun
-    [fun] = check_type([fun], AS.Callable)
+    [fun] = check_type(metadata, [fun], AS.Callable)
     return fun
 
 
@@ -76,6 +78,10 @@ def recursive_strict(
         values = yield from map_strict_with_hook(values, recursive_strict)
         d = dict(zip(item.value.keys(), values))
         return AS.Dict(d)
+    if isinstance(item, AS.ErrorValue):
+        v = item.value
+        v = yield from map_strict_with_hook(v, recursive_strict)
+        return AS.ErrorValue(item.metadatas, item.message, tuple(v))
     return item
 
 
@@ -108,6 +114,7 @@ def _format_list(strings: Iterable[str], conj: str = "and"):
 
 
 def check_type(
+    metadata: AS.Metadata,
     argv: Sequence[AS.StrictValue],
     types: type[_ValueT],
 ) -> Sequence[_ValueT]:
@@ -115,51 +122,60 @@ def check_type(
         return argv
     arg_type_formatted = _format_list(type(a).__name__ for a in argv)
     raise error.UnsuspectedHangeulTypeError(
+        metadata,
         "Expected arguments of types "
-        f"among {types} but received {arg_type_formatted}."
+        f"among {types} but received {arg_type_formatted}.",
     )
 
 
-def check_same_type(argv: Sequence[AS.StrictValue]):
+def check_same_type(metadata: AS.Metadata, argv: Sequence[AS.StrictValue]):
     if not is_same_type(argv):
         arg_type_formatted = _format_list(type(a).__name__ for a in argv)
         raise error.UnsuspectedHangeulTypeError(
+            metadata,
             "Expected arguments of the same type "
-            f"but received {arg_type_formatted}."
+            f"but received {arg_type_formatted}.",
         )
 
 
-def check_arity(argv: Sequence[Any], arities: int | Sequence[int]):
+def check_arity(
+    metadata: AS.Metadata, argv: Sequence[Any], arities: int | Sequence[int]
+):
     if isinstance(arities, int):
         arities = [arities]
     if len(argv) not in arities:
         arities_formatted = _format_list([str(n) for n in arities], "or")
-        raise AS.UnsuspectedHangeulError(
+        raise error.UnsuspectedHangeulValueError(
+            metadata,
             f"Expected {arities_formatted} arguments "
             f"but received {len(argv)}.",
-            [],
         )
 
 
-def check_min_arity(argv: Sequence[Any], minimum_arity: int):
+def check_min_arity(
+    metadata: AS.Metadata, argv: Sequence[Any], minimum_arity: int
+):
     if len(argv) < minimum_arity:
-        raise AS.UnsuspectedHangeulError(
+        raise error.UnsuspectedHangeulValueError(
+            metadata,
             f"Expected at least {minimum_arity} arguments "
             f"but received {len(argv)}.",
-            [],
         )
 
 
-def check_max_arity(argv: Sequence[Any], maximum_arity: int):
+def check_max_arity(
+    metadata: AS.Metadata, argv: Sequence[Any], maximum_arity: int
+):
     if len(argv) > maximum_arity:
-        raise AS.UnsuspectedHangeulError(
+        raise error.UnsuspectedHangeulValueError(
+            metadata,
             f"Expected at most {maximum_arity} arguments "
             f"but received {len(argv)}.",
-            [],
         )
 
 
 def match_arguments(
+    metadata: AS.Metadata,
     argv: Sequence[AS.Value],
     types: type[_ValueT],
     arities: int | Sequence[int] | None = None,
@@ -167,23 +183,24 @@ def match_arguments(
     max_arity: int | None = None,
 ) -> Generator[AS.Value, AS.StrictValue, list[_ValueT]]:
     if arities is not None:
-        check_arity(argv, arities)
+        check_arity(metadata, argv, arities)
     if min_arity is not None:
-        check_min_arity(argv, min_arity)
+        check_min_arity(metadata, argv, min_arity)
     if max_arity is not None:
-        check_max_arity(argv, max_arity)
+        check_max_arity(metadata, argv, max_arity)
     argv = yield from map_strict(argv)
-    return list(check_type(argv, types))
+    return list(check_type(metadata, argv, types))
 
 
 def match_defaults(
+    metadata: AS.Metadata,
     argv: Sequence[_T],
     arity: int,
     defaults: Sequence[_T] = (),
 ) -> Sequence[_T]:
     argv = list(argv)
-    check_max_arity(argv, arity)
-    check_min_arity(argv, arity - len(defaults))
+    check_max_arity(metadata, argv, arity)
+    check_min_arity(metadata, argv, arity - len(defaults))
     if len(argv) < arity:
         deficiency = arity - len(argv)
         argv += list(defaults[-deficiency:])
@@ -205,4 +222,4 @@ def guessed_wrap(arg: Any) -> AS.StrictValue:
     for t, T in converter.items():
         if isinstance(arg, t):
             return T(arg)
-    raise error.UnsuspectedHangeulTypeError(f"Cannot guess type of {arg}.")
+    assert False

@@ -1,4 +1,5 @@
 """Parser for esoteric language Unsuspected Hangeul."""
+import re
 import unicodedata
 
 from pbhhg_py import abstract_syntax as AS
@@ -60,10 +61,40 @@ def normalize_char(c: str):
     return " "
 
 
-def normalize(sentence: str):
-    sentence = unicodedata.normalize("NFD", sentence)
-    sentence = "".join(normalize_char(c) for c in sentence)
-    return sentence.strip()
+def normalize(character: str) -> list[str]:
+    characters = unicodedata.normalize("NFD", character)
+    normalized = "".join(normalize_char(c) for c in characters)
+    return re.split(r"( )", normalized)
+
+
+def _merge_metadata(a: AS.Metadata, b: AS.Metadata) -> AS.Metadata:
+    assert a.filename == b.filename
+    assert a.line_no == b.line_no
+    return AS.Metadata(a.filename, a.line_no, a.start_col, b.end_col, a.line)
+
+
+def tokenize(filename: str, sentence: str) -> list[tuple[str, AS.Metadata]]:
+    if not sentence:
+        return []
+
+    lines = sentence.split("\n")
+    characters = [
+        (d, AS.Metadata(filename, i, j, j + 1, line))
+        for i, line in enumerate(lines)
+        for j, c in enumerate(line + "\n")
+        for d in normalize(c)
+        if d
+    ]
+    tokens: list[tuple[str, AS.Metadata]] = [characters[0]]
+    for cur, metadata in characters[1:]:
+        prev, prev_metadata = tokens[-1]
+        if prev == " " and cur == " ":
+            continue
+        elif prev != " " and cur != " ":
+            tokens[-1] = (prev + cur, _merge_metadata(prev_metadata, metadata))
+        else:
+            tokens.append((cur, metadata))
+    return [token for token in tokens if token[0] != " "]
 
 
 def parse_number(s: str):
@@ -91,17 +122,20 @@ def encode_number(number: int):
     return "".join(encoded)
 
 
-def parse_word(word: str, stack: list[AS.AST]) -> list[AS.AST]:
+def parse_token(
+    token: tuple[str, AS.Metadata], stack: list[AS.AST]
+) -> list[AS.AST]:
     """Parses concrete syntax to abstract syntax
     Args:
-        word: str. word to parse
+        word: token to parse
         stack: list of parsed legal arguments so far
 
     Returns:
         new stack with newly parsed argument appended
     """
+    word, metadata = token
     if "ㅎ" in word:
-        _, arity = word.split("ㅎ")  # Assume space before every ㅎ
+        _, arity = word.split("ㅎ")
 
         if arity:  # FunCall
             arity = parse_number(arity)
@@ -117,36 +151,35 @@ def parse_word(word: str, stack: list[AS.AST]) -> list[AS.AST]:
                     f"표현식이 {len(argv)}개밖에 없습니다."
                 )
 
-            return rest + [AS.FunCall(fun, tuple(argv))]
+            return rest + [AS.FunCall(fun, tuple(argv), metadata)]
 
         else:  # FunDef
             body = stack.pop()
-            return stack + [AS.FunDef(body)]
+            return stack + [AS.FunDef(body, metadata)]
 
     elif "ㅇ" in word:
-        _, trailer = word.split("ㅇ")  # Assume space before every ㅇ
+        _, trailer = word.split("ㅇ")
 
         if trailer:  # ArgRef
             relF = parse_number(trailer)
             relA = stack.pop()
-            return stack + [AS.ArgRef(relA, relF)]
+            return stack + [AS.ArgRef(relA, relF, metadata)]
 
         else:  # FunRef
             relF = stack.pop()
             if not isinstance(relF, AS.Literal):
                 raise SyntaxError(f"함수 참조 시에는 정수 리터럴만 허용되는데 {relF}를 받았습니다.")
             relF = relF.value
-            return stack + [AS.FunRef(relF)]
+            return stack + [AS.FunRef(relF, metadata)]
 
     else:
-        return stack + [AS.Literal(parse_number(word))]
+        return stack + [AS.Literal(parse_number(word), metadata)]
 
 
-def parse(sentence: str):
+def parse(filename: str, sentence: str):
     """Parses program into abstract syntax"""
-    words = normalize(sentence).split(" ")
+    tokens = tokenize(filename, sentence)
     stack = []
-    for word in words:
-        if word:
-            stack = parse_word(word, stack)
+    for token in tokens:
+        stack = parse_token(token, stack)
     return stack

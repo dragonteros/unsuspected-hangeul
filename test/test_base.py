@@ -1,4 +1,4 @@
-from io import StringIO
+import io
 import sys
 import unittest
 
@@ -13,9 +13,16 @@ class TestBase(unittest.TestCase):
         stdin: str = "",
         stdout: str = "",
     ):
-        sys.stdin, sys.stdout = StringIO(stdin), StringIO()
-        result = main(program, False)
+        reader = io.BytesIO(stdin.encode("utf-8"))
+        sys.stdin = io.TextIOWrapper(reader, encoding="utf-8")
+
+        writer = io.BytesIO()
+        sys.stdout = io.TextIOWrapper(writer, encoding="utf-8")
+
+        result = main("<test file>", program, False)
         self.assertEqual(len(result), 1, "Number of Parsed Exprs")
         self.assertEqual(result[0], py_value, "Evaluated Value")
-        self.assertEqual(sys.stdout.getvalue().strip(), stdout.strip())
+        self.assertEqual(
+            writer.getvalue().decode("utf-8").strip(), stdout.strip()
+        )
         sys.stdin, sys.stdout = sys.__stdin__, sys.__stdout__

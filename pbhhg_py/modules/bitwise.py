@@ -18,9 +18,13 @@ def build_tbl(
 ):
     del proc_functional  # Unused
 
-    def _wrap(op: Op, arity: int):
-        def _proc(argv: Sequence[AS.Value]) -> AS.EvalContext:
-            argv = yield from utils.match_arguments(argv, AS.Integer, arity)
+    def _wrap(op: Op, arity: int) -> AS.Evaluation:
+        def _proc(
+            metadata: AS.Metadata, argv: Sequence[AS.Value]
+        ) -> AS.EvalContext:
+            argv = yield from utils.match_arguments(
+                metadata, argv, AS.Integer, arity
+            )
             return AS.Integer(op(*(arg.value for arg in argv)))
 
         return _proc

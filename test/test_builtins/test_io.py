@@ -27,10 +27,10 @@ class TestIO(TestBase):
         _test = self._assert_execute
         _test("ㄴ ㄳㅎㄴ (ㄱㅇㄱ ㄴ ㄷㅎㄷ ㄳㅎㄶ)ㄱㅀㄷ", "2")
 
-    # def test_file_descriptor(self):
-    #     _test = self._assert_execute
-    #     _test("ㄱ ㄹ ㄱㄴㅎㄷ (ㄴ ㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷ", "b'a'", "a")
-    #     _test("ㄴ ㅈㄹ ㄱㄴㅎㄷ (b'ㄴㅁㄴ ㄴ ㄴ ㅂ ㅂ ㅂㅎㄷㅎㄷㅎㄴ' ㅈㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷ", "1", "", "a")
+    def test_file_descriptor(self):
+        _test = self._assert_execute
+        _test("ㄱ ㄹ ㄱㄴㅎㄷ (ㄴ ㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷ", "b'\\x61'", "a")
+        _test("ㄴ ㅈㄹ ㄱㄴㅎㄷ (b'ㄴㅁㄴ ㄴ ㄴ ㅂ ㅂ ㅂㅎㄷㅎㄷㅎㄴ' ㅈㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷ", "1", "", "a")
 
     def test_file_read_write(self):
         _test = self._assert_execute
@@ -40,7 +40,7 @@ class TestIO(TestBase):
             "test/test_builtins/testdata/test.txt",
         )
         _test(
-            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㄱ ㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㄴㄱ ㄹ ㄱㅇㄱㅎㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
             "b'\\x30'",
             "test/test_builtins/testdata/test.txt",
         )
