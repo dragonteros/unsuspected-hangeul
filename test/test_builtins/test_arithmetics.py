@@ -13,6 +13,11 @@ class TestArithmetics(TestBase):
         _test("(ㄱ ㄱ ㅈㅎㄷ) (ㄱ ㄴ ㅈㅎㄷ) ㄱㅎㄷ", "False")
         _test("(ㄱ ㄱ ㄴㅎㄷ) (ㄱ ㄴ ㅈㅎㄷ) (ㅈㅈㅎㄱ) ㄱㅎㄹ", "True")
 
+    def test_multiply_short_circuit(self):
+        _test = self._assert_execute
+        _test("[] 목록ㅎㄱ (ㄱㅇㄱ 재다ㅎㄴ ㄷ ㄴㅎㄷ ㄱ ㄱㅇㄱㅎㄴ ㄱ ㄴㅎㄷ 곱ㅎㄷㅎ)ㅎㄴ", "False")
+        _test("[ㄱ, ㄴ] 목록ㅎㄷ (ㄱㅇㄱ 재다ㅎㄴ ㄷ ㄴㅎㄷ ㄱ ㄱㅇㄱㅎㄴ ㄱ ㄴㅎㄷ 곱ㅎㄷㅎ)ㅎㄴ", "True")
+
     def test_add(self):
         _test = self._assert_execute
         _test("ㄱ ㄴ ㄷ ㄹ ㄷㅎㅁ", "6")
@@ -43,6 +48,12 @@ class TestArithmetics(TestBase):
             "(ㅂ ㅂ ㅂㅎㄷ) (ㄳㄱ ㄴ ㄴ ㄱㅇㄱㅎㄷㅎㄴ) (ㄴ ㅁㅈㅎㄴ ㄱ ㄴ ㄱㅇㄱㅎㄷㅎㄴ) ㄷㅎㄷ ㅎㅎㄴ",
             "b'\\x30\\x31'",
         )
+
+    def test_add_short_circuit(self):
+        _test = self._assert_execute
+        _test("[] 목록ㅎㄱ (ㄱㅇㄱ 재다ㅎㄴ ㄱ ㄴㅎㄷ ㄱ ㄱㅇㄱㅎㄴ ㄱ ㄴㅎㄷ 더ㅎㄷㅎ)ㅎㄴ", "True")
+        _test("[ㄱ] 목록ㅎㄴ (ㄱㅇㄱ 재다ㅎㄴ ㄱ ㄴㅎㄷ ㄱ ㄱㅇㄱㅎㄴ ㄱ ㄴㅎㄷ 더ㅎㄷㅎ)ㅎㄴ", "True")
+        _test("[ㄴ] 목록ㅎㄴ (ㄱㅇㄱ 재다ㅎㄴ ㄱ ㄴㅎㄷ ㄱ ㄱㅇㄱㅎㄴ ㄱ ㄴㅎㄷ 더ㅎㄷㅎ)ㅎㄴ", "False")
 
     def test_exponentiate(self):
         _test = self._assert_execute

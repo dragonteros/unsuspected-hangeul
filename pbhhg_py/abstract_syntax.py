@@ -123,8 +123,11 @@ class ErrorValue(NamedTuple):
     message: str
     value: tuple[StrictValue, ...]
 
+    def __eq__(self, other: typing.Self) -> bool:
+        return hash(self) == hash(other)
+
     def __hash__(self) -> int:
-        return hash(("평범한 한글/예외", self.metadatas, self.value))
+        return hash(("평범한 한글/예외", self.value))
 
 
 class Nil(NamedTuple):

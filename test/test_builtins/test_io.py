@@ -4,10 +4,12 @@ from test.test_base import TestBase
 class TestIO(TestBase):
     def test_input(self):
         _test = self._assert_execute
+        _test("ㅀㄱ", "Nil", "")
         _test("ㅀㄱ", "''", "\n")
         _test("ㅀㄱ", "'하늘'", "하늘")
         _test("ㅀㄱ ㄱㅇㄱ ㅅㅅㅎㄴ ㄳㅎㄶ ㄱㅀㄷ", "3.141592", "3.141592")
         _test("ㅀㄱ ㅅㅅ ㄳ ㄴㄱㅎㄷ ㄱㅀㄷ", "3.141592", "3.141592")
+        _test("ㅀㄱ ㅀㄱ ㄱㅇㄴ ㄱㅇㄱ 목록ㅎㄷ ㄳㅎㄶ ㄱㅀㄷㅎ ㄱㅀㄷ", "['', Nil]", "\n")
 
     def test_print(self):
         _test = self._assert_execute
@@ -26,6 +28,16 @@ class TestIO(TestBase):
     def test_bind(self):
         _test = self._assert_execute
         _test("ㄴ ㄳㅎㄴ (ㄱㅇㄱ ㄴ ㄷㅎㄷ ㄳㅎㄶ)ㄱㅀㄷ", "2")
+        _test(
+            "ㄹㅎㄱ (ㄱㅇㄱ ㅅㅅㅎㄴ ㄴㄱ ㅅㅎㄷ ㄱㅅㅎㄴㅎ) ㄱㄹㅎㄷ (ㄱㅇㄱ ㄱㅅㅎㄴㅎ) (ㄱ ㄱㅅㅎㄴㅎ)ㄱㄹㅎㄹ",
+            "0.5",
+            "2",
+        )
+        _test(
+            "ㄹㅎㄱ (ㄱㅇㄱ ㅅㅅㅎㄴ ㄴㄱ ㅅㅎㄷ ㄱㅅㅎㄴㅎ) ㄱㄹㅎㄷ (ㄱㅇㄱ ㄱㅅㅎㄴㅎ) (ㄱ ㄱㅅㅎㄴㅎ)ㄱㄹㅎㄹ",
+            "0",
+            "0",
+        )
 
     def test_file_descriptor(self):
         _test = self._assert_execute
