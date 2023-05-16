@@ -1,0 +1,30 @@
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "esnext",
+    "strict": true,
+    "jsx": "preserve",
+
+    "importHelpers": true,
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+
+    "experimentalDecorators": true,
+    "useDefineForClassFields": true,
+
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "noEmit": true,
+
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["pbhhg_js/*"]
+    },
+
+    "types": ["vitest/importMeta"],
+    "lib": ["esnext", "dom"]
+  },
+  "include": ["pbhhg_js/**/*.ts"],
+  "exclude": ["node_modules"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}

@@ -4,8 +4,6 @@ __pycache__
 *.pyc
 
 node_modules
-package-lock.json
 
-test/test.js
-Principles.md
+/test/test.js
 TODO

@@ -9,9 +9,10 @@
     "string-width": "^6.1.0"
   },
   "devDependencies": {
-    "mocha": "^10.2.0",
-    "webpack": "^4.40.2",
-    "webpack-cli": "^3.3.9"
+    "prettier": "^2.8.8",
+    "typescript": "^5.0.4",
+    "vite": "^4.3.6",
+    "vitest": "^0.31.0"
   },
   "repository": {
     "type": "git",
@@ -25,7 +26,9 @@
     "url": "https://github.com/dragonteros/unsuspected-hangeul/issues"
   },
   "scripts": {
-    "test": "python test/make_js_test.py && mocha",
-    "build": "webpack"
+    "test": "python test/make_js_test.py && vitest run",
+    "build": "vite build",
+    "coverage": "vitest run --coverage",
+    "format": "prettier --write src"
   }
 }
