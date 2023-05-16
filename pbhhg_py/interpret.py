@@ -238,6 +238,7 @@ def proc_functional(
 ) -> AS.Evaluation:
     """
     Args:
+        metadata: Caller's metadata.
         fun: A maybe-Expr value that may correspond to a function.
         general_callable: Allow non-Function callable types.
 
@@ -310,9 +311,14 @@ def proc_functional(
                     return seq[idx]
                 except IndexError:
                     raise error.UnsuspectedHangeulOutOfRangeError(
-                        metadata, "목록의 범위 밖의 번호를 요청했습니다."
+                        metadata, f"길이 {len(seq)}의 객체의 {idx}번째 요소를 요청했습니다."
                     ) from None
-            return utils.guessed_wrap(seq[idx:][:1])
+            value = seq[idx:][:1]
+            if not value:
+                raise error.UnsuspectedHangeulOutOfRangeError(
+                    metadata, f"길이 {len(seq)}의 객체의 {idx}번째 요소를 요청했습니다."
+                ) from None
+            return utils.guessed_wrap(value)
 
         return _proc_seq
 
@@ -332,7 +338,7 @@ def find_builtin(metadata: AS.Metadata, func_id: int):
     inst = parse.encode_number(func_id)
     if inst in BUITLINS:
         return BUITLINS[inst]
-    raise error.UnsuspectedHangeulTypeError(
+    raise error.UnsuspectedHangeulNotFoundError(
         metadata, f"{inst}라는 이름의 기본 제공 함수를 찾지 못했습니다."
     )
 

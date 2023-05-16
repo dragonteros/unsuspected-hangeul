@@ -1,13 +1,14 @@
 import BigInteger from 'big-integer'
 
 import * as AS from '../abstractSyntax.js'
-import { checkType, checkArity } from '../utils.js'
+import * as E from '../error.js'
+import { checkArity, checkType } from '../utils.js'
 
 function _write(view, arr, numBytes, bigEndian) {
   const _set = {
     1: view.setUint8,
     2: view.setUint16,
-    4: view.setUint32
+    4: view.setUint32,
   }[numBytes].bind(view)
   for (let i = 0; i < arr.length; i++) {
     _set(i * numBytes, arr[i], !bigEndian)
@@ -18,7 +19,7 @@ function _read(view, numBytes, bigEndian) {
   const _get = {
     1: view.getUint8,
     2: view.getUint16,
-    4: view.getUint32
+    4: view.getUint32,
   }[numBytes].bind(view)
   var arr = []
   for (let i = 0; i < view.byteLength; i += numBytes) {
@@ -30,10 +31,10 @@ function _read(view, numBytes, bigEndian) {
 const CODEC_TBL = ['utf', 'unsigned', 'signed', 'float']
 
 class Codec extends AS.FunctionV {
-  constructor(strict, scheme, numBytes, bigEndian) {
+  constructor(strict, metadata, scheme, numBytes, bigEndian) {
     super()
     this.strict = strict
-    checkType([scheme, numBytes], AS.IntegerV)
+    checkType(metadata, [scheme, numBytes], AS.IntegerV)
     this.scheme = CODEC_TBL[scheme.value]
     this.numBytes = numBytes.value
     this.bigEndian = bigEndian && bigEndian.value
@@ -41,7 +42,7 @@ class Codec extends AS.FunctionV {
 
     this.endianness = ''
     if (bigEndian !== undefined) {
-      checkType(bigEndian, AS.BooleanV)
+      checkType(metadata, bigEndian, AS.BooleanV)
       this.endianness = bigEndian.value ? 'big' : 'little'
     }
 
@@ -55,9 +56,9 @@ class Codec extends AS.FunctionV {
       ')>'
   }
 
-  execute(argv) {
+  execute(metadata, argv) {
     argv = argv.map(this.strict)
-    return this.codec(...argv)
+    return this.codec(metadata, ...argv)
   }
 
   getCodec() {
@@ -73,9 +74,9 @@ class Codec extends AS.FunctionV {
     }
   }
 
-  unicodeCodec(argument) {
+  unicodeCodec(metadata, argument) {
     // TODO: proper UTF-32
-    checkType(argument, [AS.StringV, AS.BytesV])
+    checkType(metadata, argument, [AS.StringV, AS.BytesV])
     if (argument instanceof AS.StringV) {
       var encoded = argument.value
       if (this.numBytes == 1) {
@@ -83,7 +84,7 @@ class Codec extends AS.FunctionV {
       } else if (this.endianness === '') {
         encoded = '\uFEFF' + encoded
       }
-      const arr = encoded.split('').map(c => c.charCodeAt(0))
+      const arr = encoded.split('').map((c) => c.charCodeAt(0))
       const buf = new ArrayBuffer(arr.length * this.numBytes)
       _write(new DataView(buf), arr, this.numBytes, this.bigEndian)
       return new AS.BytesV(buf)
@@ -92,9 +93,8 @@ class Codec extends AS.FunctionV {
       var view = new DataView(buf)
       var bigEndian = this.bigEndian || false
       if (this.endianness === '' && this.numBytes > 1) {
-        const getter = (this.numBytes > 2
-          ? view.getUint32
-          : view.getUint16
+        const getter = (
+          this.numBytes > 2 ? view.getUint32 : view.getUint16
         ).bind(view)
         const guessBigEndian = getter(0) === 0xfeff
         if (guessBigEndian || getter(0, true) === 0xfeff) {
@@ -103,7 +103,7 @@ class Codec extends AS.FunctionV {
         }
       }
       const arr = _read(view, this.numBytes, bigEndian)
-      var decoded = arr.map(c => String.fromCharCode(c)).join('')
+      var decoded = arr.map((c) => String.fromCharCode(c)).join('')
       if (this.numBytes == 1) {
         decoded = decodeURIComponent(escape(decoded))
       }
@@ -111,21 +111,23 @@ class Codec extends AS.FunctionV {
     }
   }
 
-  integerCodec(argument) {
+  integerCodec(metadata, argument) {
     const signed = this.scheme === 'signed'
-    checkType(argument, [AS.IntegerV, AS.BytesV])
+    checkType(metadata, argument, [AS.IntegerV, AS.BytesV])
     if (argument instanceof AS.IntegerV) {
       let num = BigInteger(argument.value)
       const isNegative = num.isNegative()
       if (isNegative && !signed) {
-        throw EvalError(
+        throw new E.UnsuspectedHangeulValueError(
+          metadata,
           'Unsigned Integer Converter expected nonnegative integer but received: ' +
             argument
         )
       }
       const bitlen = num.bitLength() + (signed ? 1 : 0)
       if (bitlen > this.numBytes * 8) {
-        throw EvalError(
+        throw new E.UnsuspectedHangeulValueError(
+          metadata,
           'Cannot encode ' + argument.value + ' in ' + this.numBytes + ' bytes.'
         )
       }
@@ -150,14 +152,14 @@ class Codec extends AS.FunctionV {
     }
   }
 
-  floatingPointCodec(argument) {
+  floatingPointCodec(metadata, argument) {
     throw EvalError('Not yet implemented')
   }
 }
 
-export default function(procFunctional, strict) {
-  function codec(argv) {
-    checkArity(argv, [2, 3])
+export default function (procFunctional, strict) {
+  function codec(metadata, argv) {
+    checkArity(metadata, argv, [2, 3])
     argv = argv.map(strict)
     return new Codec(strict, ...argv)
   }

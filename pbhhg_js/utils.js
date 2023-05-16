@@ -1,37 +1,45 @@
 /** Useful utilities **/
 import * as AS from './abstractSyntax.js'
+import * as E from './error.js'
 
-function isLiteralExpr(expr) {
+export function isLiteralExpr(expr) {
   return expr instanceof AS.ExprV && expr.expr instanceof AS.Literal
 }
 
-function extractValue(arg) {
+export function extractValue(arg) {
   return arg.value
 }
 
-function chooseConstructorLike(item, candidates) {
-  return candidates.find(f => item instanceof f)
+export function chooseConstructorLike(item, candidates) {
+  return candidates.find((f) => item instanceof f)
 }
 
-function recursiveMap(item, fn) {
+export function recursiveMap(item, fn) {
   item = fn(item)
   if (item instanceof AS.ListV) {
-    return new AS.ListV(item.value.map(v => recursiveMap(v, fn)))
+    return new AS.ListV(item.value.map((v) => recursiveMap(v, fn)))
   }
   if (item instanceof AS.DictV) {
     const d = item.value
     const result = {}
-    Object.keys(d).forEach(function(k) {
+    Object.keys(d).forEach(function (k) {
       result[k] = recursiveMap(d[k], fn)
     })
     return new AS.DictV(result)
   }
+  if (item instanceof AS.ErrorV) {
+    return new AS.ErrorV(
+      item.metadatas,
+      item.message,
+      item.value.map((v) => recursiveMap(v, fn))
+    )
+  }
   return item
 }
 
-function allEqual(arr) {
+export function allEqual(arr) {
   if (arr.length === 0) return true
-  return arr.every(function(a) {
+  return arr.every(function (a) {
     return a === arr[0]
   })
 }
@@ -41,90 +49,83 @@ function _forceArray(condition) {
   return Array.isArray(condition) ? condition : [condition]
 }
 
-function isType(argv, desiredTypes) {
+export function isType(argv, desiredTypes) {
   desiredTypes = _forceArray(desiredTypes)
   function _matches(arg) {
-    return desiredTypes.some(function(desiredType) {
+    return desiredTypes.some(function (desiredType) {
       return arg instanceof desiredType
     })
   }
   return _forceArray(argv).every(_matches)
 }
 
-function isSameType(argv) {
+export function isSameType(argv) {
   argv = _forceArray(argv)
-  return allEqual(argv.map(a => a.constructor))
+  return allEqual(argv.map((a) => a.constructor))
 }
 
-function _formatArray(arr, conj = 'and') {
-  if (arr.length < 2) return arr.toString()
-  return arr
-    .slice(0, -1)
-    .join(', ')
-    .concat(' ', conj, ' ', arr[arr.length - 1])
+function _formatArray(arr, conj = ', ') {
+  return arr.join(conj)
 }
 
-function checkType(argv, desiredTypes) {
+export function checkType(metadata, argv, desiredTypes) {
   argv = _forceArray(argv)
   desiredTypes = _forceArray(desiredTypes)
   if (isType(argv, desiredTypes)) return
-  const desiredTypeNames = desiredTypes.map(t => t.displayName)
-  const argTypeNames = argv.map(a => a.constructor.displayName)
-  throw TypeError(
-    'Expected arguments of the same type among ' +
-      _formatArray(desiredTypeNames) +
-      ' but received ' +
-      _formatArray(argTypeNames)
+  const desiredTypeNames = desiredTypes.map((t) => t.displayName)
+  const argTypeNames = argv.map((a) => a.constructor.displayName)
+  throw new E.UnsuspectedHangeulTypeError(
+    metadata,
+    `인수를 ${_formatArray(desiredTypeNames)} 중에서 주어야 하는데 ` +
+      `${_formatArray(argTypeNames)}를 주었습니다.`
   )
 }
 
-function checkSameType(argv) {
+export function checkSameType(metadata, argv) {
   argv = _forceArray(argv)
   if (isSameType(argv)) return
-  argTypeNames = argv.map(a => a.constructor.displayName)
-  throw TypeError(
+  argTypeNames = argv.map((a) => a.constructor.displayName)
+  throw new E.UnsuspectedHangeulTypeError(
+    metadata,
     'Expected arguments of the same type but received ' +
       _formatArray(argTypeNames)
   )
 }
 
-function checkArity(argv, desiredArities) {
+export function checkArity(metadata, argv, desiredArities) {
   desiredArities = _forceArray(desiredArities)
   if (desiredArities.indexOf(argv.length) !== -1) return
-  throw SyntaxError(
-    'Expected ' +
-      _formatArray(desiredArities, 'or') +
-      ' arguments but received ' +
-      argv.length
+  throw new E.UnsuspectedHangeulValueError(
+    metadata,
+    `인수를 ${_formatArray(desiredArities, '개나 ')}개를 주어야 하는데 ` +
+      `${argv.length}개의 인수를 주었습니다.`
   )
 }
 
-function checkMinArity(argv, minimumArity) {
+export function checkMinArity(metadata, argv, minimumArity) {
   if (argv.length >= minimumArity) return
-  throw SyntaxError(
-    'Expected at least ' +
-      minimumArity +
-      ' arguments expected but received ' +
-      argv.length
+  throw new E.UnsuspectedHangeulValueError(
+    metadata,
+    `인수를 ${minimumArity}개 이상 주어야 하는데` +
+      `${argv.length}개 주었습니다.`
   )
 }
 
-function checkMaxArity(argv, maximumArity) {
+export function checkMaxArity(metadata, argv, maximumArity) {
   if (argv.length <= maximumArity) return
-  throw SyntaxError(
-    'Expected at most ' +
-      maximumArity +
-      ' arguments expected but received ' +
-      argv.length
+  throw new E.UnsuspectedHangeulValueError(
+    metadata,
+    `인수를 ${maximumArity}개 이하 주어야 하는데` +
+      `${argv.length}개 주었습니다.`
   )
 }
 
-function matchDefaults(argv, arity, defaults) {
+export function matchDefaults(metadata, argv, arity, defaults) {
   if (defaults === undefined) {
     defaults = []
   }
-  checkMaxArity(argv, arity)
-  checkMinArity(argv, arity - defaults.length)
+  checkMaxArity(metadata, argv, arity)
+  checkMinArity(metadata, argv, arity - defaults.length)
   if (argv.length < arity) {
     let deficiency = arity - argv.length
     argv = argv.concat(defaults.slice(-deficiency))
@@ -132,9 +133,9 @@ function matchDefaults(argv, arity, defaults) {
   return argv
 }
 
-/* Converts the value into string for hashing */
-function toString(value, strict, ioUtils, formatIO) {
-  const _partial = v => toString(v, strict, ioUtils, formatIO)
+/* Converts the value into string for display */
+export function toString(value, strict, ioUtils, formatIO) {
+  const _partial = (v) => toString(v, strict, ioUtils, formatIO)
   value = strict(value)
   if (ioUtils && value instanceof AS.IOV) {
     value = ioUtils.doIO(value, ioUtils)
@@ -156,7 +157,7 @@ function toString(value, strict, ioUtils, formatIO) {
     return '[' + value.value.map(_partial).join(', ') + ']'
   } else if (value instanceof AS.DictV) {
     const keys = value.keys()
-    const pairs = keys.map(k => k + ': ' + _partial(value.value[k]))
+    const pairs = keys.map((k) => k + ': ' + _partial(value.value[k]))
     return '{' + pairs.join(', ') + '}'
   } else if (value instanceof AS.IOV) {
     const argvStr = value.argv.map(_partial).join(',')
@@ -165,21 +166,4 @@ function toString(value, strict, ioUtils, formatIO) {
     return 'Nil'
   }
   throw EvalError('Unexpected value: ' + value)
-}
-
-export {
-  isLiteralExpr,
-  extractValue,
-  chooseConstructorLike,
-  recursiveMap,
-  allEqual,
-  isType,
-  isSameType,
-  checkType,
-  checkSameType,
-  checkArity,
-  checkMinArity,
-  checkMaxArity,
-  matchDefaults,
-  toString
 }

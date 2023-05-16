@@ -107,10 +107,7 @@ def is_same_type(argv: Sequence[AS.StrictValue]) -> bool:
 
 
 def _format_list(strings: Iterable[str], conj: str = "and"):
-    strings = list(strings)
-    if len(strings) < 2:
-        return "".join(strings)
-    return "{} {} {}".format(", ".join(strings[:-1]), conj, strings[-1])
+    return conj.join(strings)
 
 
 def check_type(
@@ -123,19 +120,8 @@ def check_type(
     arg_type_formatted = _format_list(type(a).__name__ for a in argv)
     raise error.UnsuspectedHangeulTypeError(
         metadata,
-        "Expected arguments of types "
-        f"among {types} but received {arg_type_formatted}.",
+        f"인수를 {types} 중에서 주어야 하는데 {arg_type_formatted}를 주었습니다.",
     )
-
-
-def check_same_type(metadata: AS.Metadata, argv: Sequence[AS.StrictValue]):
-    if not is_same_type(argv):
-        arg_type_formatted = _format_list(type(a).__name__ for a in argv)
-        raise error.UnsuspectedHangeulTypeError(
-            metadata,
-            "Expected arguments of the same type "
-            f"but received {arg_type_formatted}.",
-        )
 
 
 def check_arity(
@@ -144,11 +130,10 @@ def check_arity(
     if isinstance(arities, int):
         arities = [arities]
     if len(argv) not in arities:
-        arities_formatted = _format_list([str(n) for n in arities], "or")
+        arities_formatted = _format_list([str(n) for n in arities], "개나 ")
         raise error.UnsuspectedHangeulValueError(
             metadata,
-            f"Expected {arities_formatted} arguments "
-            f"but received {len(argv)}.",
+            f"인수를 {arities_formatted}개를 주어야 하는데 {len(argv)}개를 주었습니다.",
         )
 
 
@@ -158,8 +143,7 @@ def check_min_arity(
     if len(argv) < minimum_arity:
         raise error.UnsuspectedHangeulValueError(
             metadata,
-            f"Expected at least {minimum_arity} arguments "
-            f"but received {len(argv)}.",
+            f"인수를 {minimum_arity}개 이상 주어야 하는데 {len(argv)}개를 주었습니다.",
         )
 
 
@@ -169,8 +153,7 @@ def check_max_arity(
     if len(argv) > maximum_arity:
         raise error.UnsuspectedHangeulValueError(
             metadata,
-            f"Expected at most {maximum_arity} arguments "
-            f"but received {len(argv)}.",
+            f"인수를 {maximum_arity}개 이하 주어야 하는데 {len(argv)}개를 주었습니다.",
         )
 
 

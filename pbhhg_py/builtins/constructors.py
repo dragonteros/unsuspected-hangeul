@@ -25,7 +25,7 @@ def build_tbl(
     ) -> AS.EvalContext:
         if len(argv) % 2 == 1:
             raise error.UnsuspectedHangeulValueError(
-                metadata, f"ㅅㅈ 함수는 짝수 개의 인수를 받지만 {len(argv)}개의 인수가 들어왔습니다."
+                metadata, f"ㅅㅈ 함수에는 인수를 짝수 개로 주어야 하는데 {len(argv)}개를 주었습니다."
             )
         keys, values = argv[0::2], argv[1::2]
         keys = yield from utils.map_strict_with_hook(

@@ -7,7 +7,7 @@ import Complex from 'complex.js'
 
 Math.trunc =
   Math.trunc ||
-  function(x) {
+  function (x) {
     if (isNaN(x)) {
       return NaN
     }
@@ -17,11 +17,11 @@ Math.trunc =
     return Math.ceil(x)
   }
 
-Complex.prototype.add = function(a, b) {
+Complex.prototype.add = function (a, b) {
   var z = new Complex(a, b)
   return new Complex(this['re'] + z['re'], this['im'] + z['im'])
 }
-Complex.prototype.mul = function(a, b) {
+Complex.prototype.mul = function (a, b) {
   var z = new Complex(a, b)
   return new Complex(
     this['re'] * z['re'] - this['im'] * z['im'],
@@ -41,7 +41,7 @@ function _toReal(x) {
   return x instanceof Complex ? x.valueOf() : x
 }
 
-export function _toComplex(x) {
+export function toComplex(x) {
   if (x instanceof BigInteger) x = x.valueOf()
   return Complex(x)
 }
@@ -99,9 +99,9 @@ export function add(a, b) {
   if (_isBothIntegers(a, b)) {
     return a.plus(b)
   } else if (a instanceof Complex) {
-    return a.add(_toComplex(b))
+    return a.add(toComplex(b))
   } else if (b instanceof Complex) {
-    return b.add(_toComplex(a))
+    return b.add(toComplex(a))
   }
   return a + b
 }
@@ -109,9 +109,9 @@ export function sub(a, b) {
   if (_isBothIntegers(a, b)) {
     return a.minus(b)
   } else if (a instanceof Complex) {
-    return a.sub(_toComplex(b))
+    return a.sub(toComplex(b))
   } else if (b instanceof Complex) {
-    return b.sub(_toComplex(a))
+    return b.sub(toComplex(a))
   }
   return a - b
 }
@@ -119,9 +119,9 @@ export function mul(a, b) {
   if (_isBothIntegers(a, b)) {
     return a.times(b)
   } else if (a instanceof Complex) {
-    return a.mul(_toComplex(b))
+    return a.mul(toComplex(b))
   } else if (b instanceof Complex) {
-    return b.mul(_toComplex(a))
+    return b.mul(toComplex(a))
   }
   return a * b
 }
@@ -146,5 +146,5 @@ export function pow(a, b) {
     let value = Math.pow(a, b)
     if (!isNaN(value)) return value
   }
-  return _toComplex(a).pow(_toComplex(b))
+  return toComplex(a).pow(toComplex(b))
 }

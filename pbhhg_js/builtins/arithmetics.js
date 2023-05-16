@@ -2,21 +2,21 @@ import BigInteger from 'big-integer'
 import Complex from 'complex.js'
 
 import * as AS from '../abstractSyntax.js'
+import { add, div, mod, mul, pow } from '../numbers.js'
 import {
   checkArity,
-  checkType,
   checkMinArity,
-  isType,
+  checkSameType,
+  checkType,
   extractValue,
-  checkSameType
+  isType,
 } from '../utils.js'
-import { add, mul, div, mod, pow } from '../numbers.js'
 
 function _joinArrayBuffer(bufs) {
-  const size = bufs.map(a => a.byteLength).reduce((a, b) => a + b, 0)
+  const size = bufs.map((a) => a.byteLength).reduce((a, b) => a + b, 0)
   const newBuf = new ArrayBuffer(size)
   const view = new Uint8Array(newBuf)
-  bufs.reduce(function(idx, buf) {
+  bufs.reduce(function (idx, buf) {
     view.set(new Uint8Array(buf), idx)
     return idx + buf.byteLength
   }, 0)
@@ -30,29 +30,33 @@ export function wrapNumber(num) {
   return null
 }
 
-export default function(procFunctional, strict) {
-  function _multiply(argv) {
-    checkMinArity(argv, 1)
+export default function (procFunctional, strict) {
+  function _multiply(metadata, argv) {
+    checkMinArity(metadata, argv, 1)
     argv = argv.map(strict)
-    checkType(argv, [AS.BooleanV].concat(AS.NumberV))
+    checkType(metadata, argv, [AS.BooleanV].concat(AS.NumberV))
     if (isType(argv, AS.NumberV)) {
       return wrapNumber(argv.map(extractValue).reduce(mul))
     }
-    checkSameType(argv)
+    checkSameType(metadata, argv)
     return new AS.BooleanV(argv.every(extractValue))
   }
 
-  function _add(argv) {
-    checkMinArity(argv, 1)
+  function _add(metadata, argv) {
+    checkMinArity(metadata, argv, 1)
     argv = argv.map(strict)
-    checkType(argv, [AS.BooleanV, AS.DictV].concat(AS.NumberV, AS.SequenceV))
+    checkType(
+      metadata,
+      argv,
+      [AS.BooleanV, AS.DictV].concat(AS.NumberV, AS.SequenceV)
+    )
     const extracted = argv.map(extractValue)
     if (isType(argv, AS.NumberV)) {
       return wrapNumber(extracted.reduce(add))
     }
-    checkSameType(argv)
+    checkSameType(metadata, argv)
     if (isType(argv, AS.BooleanV)) {
-      return new AS.BooleanV(extracted.some(x => x))
+      return new AS.BooleanV(extracted.some((x) => x))
     } else if (isType(argv, AS.StringV)) {
       return new AS.StringV(extracted.join(''))
     } else if (isType(argv, AS.BytesV)) {
@@ -61,35 +65,35 @@ export default function(procFunctional, strict) {
       return new AS.ListV(extracted.reduce((a, b) => a.concat(b)))
     } else if (isType(argv, AS.DictV)) {
       var result = {}
-      extracted.forEach(d => Object.assign(result, d))
+      extracted.forEach((d) => Object.assign(result, d))
       return new AS.DictV(result)
     }
   }
 
-  function _exponentiate(argv) {
-    checkArity(argv, [2, 3])
+  function _exponentiate(metadata, argv) {
+    checkArity(metadata, argv, [2, 3])
     argv = argv.map(strict)
-    checkType(argv, AS.NumberV)
+    checkType(metadata, argv, AS.NumberV)
     if (argv.length === 3) {
-      checkType(argv, AS.IntegerV)
+      checkType(metadata, argv, AS.IntegerV)
       argv = argv.map(extractValue)
       return new AS.IntegerV(argv[0].modPow(argv[1], argv[2]))
     }
-    checkArity(argv, 2)
+    checkArity(metadata, argv, 2)
     return wrapNumber(pow(argv[0].value, argv[1].value))
   }
 
-  function _integerDivision(argv) {
-    checkArity(argv, 2)
+  function _integerDivision(metadata, argv) {
+    checkArity(metadata, argv, 2)
     argv = argv.map(strict)
-    checkType(argv, AS.RealV)
+    checkType(metadata, argv, AS.RealV)
     return wrapNumber(div(argv[0].value, argv[1].value))
   }
 
-  function _remainder(argv) {
-    checkArity(argv, 2)
+  function _remainder(metadata, argv) {
+    checkArity(metadata, argv, 2)
     argv = argv.map(strict)
-    checkType(argv, AS.RealV)
+    checkType(metadata, argv, AS.RealV)
     return wrapNumber(mod(argv[0].value, argv[1].value))
   }
 
@@ -98,6 +102,6 @@ export default function(procFunctional, strict) {
     ㄷ: _add,
     ㅅ: _exponentiate,
     ㄴㄴ: _integerDivision,
-    ㄴㅁ: _remainder
+    ㄴㅁ: _remainder,
   }
 }

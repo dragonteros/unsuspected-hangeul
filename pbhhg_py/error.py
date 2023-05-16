@@ -40,7 +40,7 @@ class UnsuspectedHangeulValueError(UnsuspectedHangeulBuiltinError):
 
 class UnsuspectedHangeulDivisionError(UnsuspectedHangeulBuiltinError):
     def __init__(self, metadata: AS.Metadata, message: str):
-        code = parse.parse_number("ㄴㄴ")  # 나눔
+        code = parse.parse_number("ㄴㄴ")  # 나누기
         super().__init__(metadata, message, [code])
 
 
