@@ -3,8 +3,7 @@
   "version": "0.8.0",
   "main": "pbhhg.js",
   "dependencies": {
-    "big-integer": "^1.6.45",
-    "complex.js": "^2.0.11",
+    "complex.js": "^2.1.1",
     "readline-sync": "^1.4.10",
     "string-width": "^6.1.0"
   },

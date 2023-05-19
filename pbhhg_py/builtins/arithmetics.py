@@ -8,29 +8,6 @@ from pbhhg_py import error
 from pbhhg_py import utils
 
 
-def _extended_gcd(a: int, b: int):
-    """Returns (g, x, y) such that a*x + b*y = g = gcd(a, b)"""
-    x, x_old, y, y_old = 0, 1, 1, 0
-    while a != 0:
-        (q, a), b = divmod(b, a), a
-        y, y_old = y_old, y - q * y_old
-        x, x_old = x_old, x - q * x_old
-    return b, x, y
-
-
-def _modular_inverse(metadata: AS.Metadata, a: int, mod: int):
-    a = a % mod
-    try:
-        return pow(a, -1, mod)
-    except ValueError:
-        g, inverse, _ = _extended_gcd(a, mod)
-        if g == 1:
-            return inverse % mod
-    raise error.UnsuspectedHangeulArithmeticError(
-        metadata, f"{mod}를 법으로 한 {a}의 역원이 존재하지 않습니다."
-    )
-
-
 def build_tbl(
     proc_functional: utils.ProcFunctional,
 ) -> dict[str, AS.Evaluation]:
@@ -119,10 +96,12 @@ def build_tbl(
 
         argv = utils.check_type(metadata, argv, AS.Integer)
         base, exponent, modulo = [a.value for a in argv]
-        if exponent < 0:
-            base = _modular_inverse(metadata, base, modulo)
-            exponent = -exponent
-        return utils.guessed_wrap(pow(base, exponent, modulo))
+        try:
+            return utils.guessed_wrap(pow(base, exponent, modulo))
+        except ValueError:
+            raise error.UnsuspectedHangeulArithmeticError(
+                metadata, f"법 {modulo}에 대한 {base}의 역원이 없습니다."
+            ) from None
 
     def _integer_division(
         metadata: AS.Metadata, argv: Sequence[AS.Value]

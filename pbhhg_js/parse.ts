@@ -1,5 +1,4 @@
 /* Parser for unsuspected hangeul. */
-import BigInteger from 'big-integer'
 import * as AS from './abstractSyntax.js'
 
 /** Normalizer **/
@@ -27,15 +26,15 @@ const UA960 = (
 ).split('|')
 
 /** Normalizes each character into standard form */
-function normalizeChar(c) {
+function normalizeChar(c: string) {
   if (c.length !== 1) {
     throw Error(
       '[normalizeChar] Length of string should be 1, not ' + c.length + ': ' + c
     )
   }
 
-  function _get(arr, ref, divisor = 1) {
-    var idx = c.charCodeAt(0) - ref.charCodeAt(0)
+  function _get(arr: string[], ref: string, divisor = 1) {
+    let idx = c.charCodeAt(0) - ref.charCodeAt(0)
     idx = Math.floor(idx / divisor)
     if (idx >= 0 && idx < arr.length) {
       return arr[idx]
@@ -66,28 +65,33 @@ function normalizeChar(c) {
   } else return ' '
 }
 
-export function normalize(sentence) {
+export function normalize(sentence: string) {
   const normalized = sentence.split('').map(normalizeChar).join('').trim()
   return normalized.split(/( )/)
 }
 
-function mergeMetadata(a, b) {
-  return AS.Metadata(a.filename, a.line_no, a.start_col, b.end_col, a.line)
+function mergeMetadata(a: AS.Metadata, b: AS.Metadata) {
+  return new AS.Metadata(a.filename, a.line_no, a.start_col, b.end_col, a.line)
 }
 
-function tokenize(filename, sentence) {
+function tokenize(filename: string, sentence: string) {
   if (sentence === '') return []
   const lines = sentence.split('\n')
   const characters = lines.flatMap((line, i) =>
     (line + '\n').split('').flatMap((c, j) =>
       normalize(c)
         .filter((d) => d !== '')
-        .map((d) => [d, AS.Metadata(filename, i, j, j + 1, line)])
+        .map((d): [string, AS.Metadata] => [
+          d,
+          new AS.Metadata(filename, i, j, j + 1, line),
+        ])
     )
   )
   let tokens = [characters[0]]
   for (const [cur, metadata] of characters.slice(1)) {
-    const [prev, prevMetadata] = tokens.pop()
+    const top = tokens.pop()
+    if (top == null) throw Error('Internal::tokenize::EMPTY_STACK')
+    const [prev, prevMetadata] = top
     if (prev === ' ' && cur === ' ') {
       tokens.push([prev, prevMetadata])
     } else if (prev !== ' ' && cur === ' ') {
@@ -100,88 +104,87 @@ function tokenize(filename, sentence) {
 }
 
 /* Parses jamo-encoded variable length integer into JS Number */
-export function parseNumber(s) {
-  var tbl = 'ㄱㄴㄷㄹㅁㅂㅅㅈ'
-  var varlen = s.split('').map(function (c) {
+export function parseNumber(s: string): bigint {
+  const tbl = 'ㄱㄴㄷㄹㅁㅂㅅㅈ'
+  const varlen = s.split('').map(function (c) {
     return tbl.indexOf(c)
   })
   if (varlen.indexOf(-1) !== -1) {
     throw SyntaxError('Argument ' + s + ' has an unsupported character')
   }
-  var num = BigInteger(varlen.reverse().join(''), 8)
+  let num = BigInt('0o' + varlen.reverse().join(''))
   if (s.length % 2 === 0) {
-    num = num.times(-1)
+    num = -num
   }
   return num
 }
 
 /* Encodes JS integer to jamo-encoded variable length integer. */
-export function encodeNumber(number) {
-  number = BigInteger(number)
-  var isNegative = number.isNegative()
-  number = number.abs()
-  var oct = number.toArray(8).value.reverse()
-  var tbl = 'ㄱㄴㄷㄹㅁㅂㅅㅈ'
-  var encoded = oct.map((s) => tbl[s]).join('')
+export function encodeNumber(number: number | bigint) {
+  const isNegative = number < 0
+  number = number >= 0 ? number : -number
+  const oct = number.toString(8).split('').reverse()
+  const tbl = 'ㄱㄴㄷㄹㅁㅂㅅㅈ'
+  let encoded = oct.map((s) => tbl[+s]).join('')
   if ((encoded.length % 2 === 0) !== isNegative) {
     encoded += 'ㄱ'
   }
   return encoded
 }
 
-/* Parses concrete syntax to abstract syntax
-Args:
-    word: string. word to parse
-    stack: list of parsed legal arguments so far that we will modify
-*/
-function parseToken(token, stack) {
+/** Parses concrete syntax to abstract syntax
+ * @param token token to parse
+ * @param stack list of parsed legal arguments so far that we will modify
+ */
+function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
   const [word, metadata] = token
   if (word.indexOf('ㅎ') !== -1) {
-    var arity = word.slice(1)
+    const arity = word.slice(1)
 
     if (arity) {
       // AS.FunCall
-      arity = parseNumber(arity).toJSNumber()
-      if (arity < 0) {
-        throw SyntaxError(`함수 호출 시 ${arity}개의 인수를 요구했습니다.`)
+      const _arity = Number(parseNumber(arity))
+      if (_arity < 0) {
+        throw SyntaxError(`함수 호출 시 ${_arity}개의 인수를 요구했습니다.`)
       }
 
-      var fun = stack.pop()
-      if (arity === 0) {
+      const fun = stack.pop()
+      if (fun == null) throw Error('Internal::parseToken::EMPTY_STACK')
+      if (_arity === 0) {
         stack.push(new AS.FunCall(metadata, fun, []))
       } else {
-        var argv = stack.splice(-arity, arity)
-        if (argv.length < arity) {
+        const argv = stack.splice(-_arity, _arity)
+        if (argv.length < _arity) {
           throw SyntaxError(
-            `함수 호출 시 ${arity}개의 인수를 요구했으나 표현식이 ${argv.length}개밖에 없습니다.`
+            `함수 호출 시 ${_arity}개의 인수를 요구했으나 표현식이 ${argv.length}개밖에 없습니다.`
           )
         }
         stack.push(new AS.FunCall(metadata, fun, argv))
       }
     } else {
       // AS.FunDef
-      var body = stack.pop()
+      const body = stack.pop()
+      if (body == null) throw Error('Internal::parseToken::EMPTY_STACK')
       stack.push(new AS.FunDef(metadata, body))
     }
   } else if (word.indexOf('ㅇ') !== -1) {
-    var trailer = word.slice(1)
-    var relF
-    if (trailer) {
+    const trailer = word.slice(1)
+    if (trailer !== '') {
       // AS.ArgRef
-      var relA = stack.pop()
-      relF = parseNumber(trailer).toJSNumber()
+      const relA = stack.pop()
+      if (relA == null) throw Error('Internal::parseToken::EMPTY_STACK')
+      const relF = +trailer
       stack.push(new AS.ArgRef(metadata, relA, relF))
     } else {
       // AS.FunRef
-      relF = stack.pop()
-      if (relF instanceof AS.Literal) {
-        relF = relF.value.toJSNumber()
-      } else {
+      const relF = stack.pop()
+      if (relF == null) throw Error('Internal::parseToken::EMPTY_STACK')
+      if (!(relF instanceof AS.Literal)) {
         throw SyntaxError(
           `함수 참조 시에는 정수 리터럴만 허용되는데 ${relF}를 받았습니다.`
         )
       }
-      stack.push(new AS.FunRef(metadata, relF))
+      stack.push(new AS.FunRef(metadata, Number(relF.value)))
     }
   } else {
     stack.push(new AS.Literal(metadata, parseNumber(word)))
@@ -189,13 +192,11 @@ function parseToken(token, stack) {
 }
 
 /* Parses program into abstract syntax */
-export function parse(filename, sentence) {
-  var tokens = tokenize(filename, sentence)
-  var stack = []
+export function parse(filename: string, sentence: string) {
+  const tokens = tokenize(filename, sentence)
+  const stack: AS.AST[] = []
   for (const token of tokens) {
     parseToken(token, stack)
   }
   return stack
 }
-
-export { normalize, parseNumber, encodeNumber, parse }
