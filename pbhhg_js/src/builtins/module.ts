@@ -1,16 +1,11 @@
-import * as AS from '../abstractSyntax.js'
-import * as E from '../error.js'
-import { encodeNumber, normalize, parse, parseNumber } from '../parse.js'
-import {
-  checkArity,
-  checkMinArity,
-  checkType,
-  isLiteralExpr,
-} from '../utils.js'
+import * as AS from '../abstractSyntax'
+import * as E from '../error'
+import { encodeNumber, normalize, parse, parseNumber } from '../parse'
+import { checkArity, checkMinArity, checkType, isLiteralExpr } from '../utils'
 
-import buildBitwise from '../modules/bitwise.js'
-import buildByte from '../modules/byte.js'
-import buildMath from '../modules/math.js'
+import buildBitwise from '../modules/bitwise'
+import buildByte from '../modules/byte'
+import buildMath from '../modules/math'
 
 interface ModuleTable
   extends Record<string, number | AS.Evaluation | ModuleTable> {}

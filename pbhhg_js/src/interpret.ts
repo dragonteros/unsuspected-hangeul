@@ -1,16 +1,16 @@
-import * as AS from './abstractSyntax.js'
-import * as E from './error.js'
-import { encodeNumber } from './parse.js'
-import { checkArity, checkType, getLength, isLiteralExpr } from './utils.js'
+import * as AS from './abstractSyntax'
+import * as E from './error'
+import { encodeNumber } from './parse'
+import { checkArity, checkType, getLength, isLiteralExpr } from './utils'
 
-import buildArithmetics from './builtins/arithmetics.js'
-import buildConstructors from './builtins/constructors.js'
-import buildFunctional from './builtins/functional.js'
-import buildIO from './builtins/io.js'
-import buildLogic from './builtins/logic.js'
-import buildModule from './builtins/module.js'
-import buildSequence from './builtins/sequence.js'
-import buildString from './builtins/string.js'
+import buildArithmetics from './builtins/arithmetics'
+import buildConstructors from './builtins/constructors'
+import buildFunctional from './builtins/functional'
+import buildIO from './builtins/io'
+import buildLogic from './builtins/logic'
+import buildModule from './builtins/module'
+import buildSequence from './builtins/sequence'
+import buildString from './builtins/string'
 
 type BuiltinFunctionMap = Record<string, AS.Evaluation>
 const BUILTINS: BuiltinFunctionMap = {}

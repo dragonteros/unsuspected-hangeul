@@ -1,11 +1,11 @@
-import * as AS from '../abstractSyntax.js'
+import * as AS from '../abstractSyntax'
 import {
   checkArity,
   checkType,
   extractValue,
   getLength,
   matchDefaults,
-} from '../utils.js'
+} from '../utils'
 
 export default function (
   procFunctional: AS.ProcFunctionalFn,

@@ -1,6 +1,7 @@
-import { arrayToInt, intToArray } from '@/numbers.js'
-import * as AS from '../abstractSyntax.js'
-import { checkArity, checkType } from '../utils.js'
+import * as AS from '../abstractSyntax'
+import * as E from '../error'
+import { arrayToInt, intToArray } from '../numbers'
+import { checkArity, checkType } from '../utils'
 
 function _write(
   view: DataView,
@@ -35,8 +36,8 @@ function _read(view: DataView, numBytes: number, bigEndian?: boolean) {
 
 function isExpressible(integer: bigint, numBytes: bigint, signed: boolean) {
   const bound = 2n << (8n * numBytes)
-  if (signed) return 0n <= integer && integer < bound
-  return -bound / 2n <= integer && integer < bound / 2n
+  if (signed) return -bound / 2n <= integer && integer < bound / 2n
+  return 0n <= integer && integer < bound
 }
 
 const CODEC_TBL = ['utf', 'unsigned', 'signed', 'float'] as const
@@ -81,7 +82,16 @@ class Codec extends AS.FunctionV {
   }
 
   execute(metadata: AS.Metadata, argv: AS.Value[]) {
-    return this.codec(metadata, argv.map(this.strict))
+    const _argv = argv.map(this.strict)
+    try {
+      return this.codec(metadata, _argv)
+    } catch (error) {
+      if (error instanceof AS.UnsuspectedHangeulError) throw error
+      throw new E.UnsuspectedHangeulValueError(
+        metadata,
+        `요청된 변환을 수행하지 못했습니다. 변환기: ${this.str}, 인수: ${_argv}`
+      )
+    }
   }
 
   getCodec(): AS.Evaluation {
@@ -150,8 +160,13 @@ class Codec extends AS.FunctionV {
     if (arg instanceof AS.IntegerV) {
       let num = arg.value
       const isNegative = num < 0
-      if (isNegative && !signed) throw Error()
-      if (!isExpressible(num, BigInt(this.numBytes), signed)) throw Error()
+
+      if (isNegative && !signed)
+        throw Error('음수는 부호 없는 정수 형식으로 변환할 수 없습니다.')
+      if (!isExpressible(num, BigInt(this.numBytes), signed))
+        throw Error(
+          `${this.numBytes}바이트로 표현할 수 없는 정수를 받았습니다.`
+        )
 
       if (isNegative) num = ~num
       const arr = intToArray(num, 256n).map(Number)

@@ -1,7 +1,7 @@
 /** Abstract syntax and values. **/
 import Complex from 'complex.js'
 import stringWidth from 'string-width'
-import { isclose } from './numbers.js'
+import { isclose } from './numbers'
 
 export class Metadata {
   private str?: string
@@ -50,7 +50,7 @@ export type AST = Literal | FunRef | ArgRef | FunDef | FunCall
 
 /* Interpreter */
 export type IOUtils = {
-  input(): string | undefined
+  input(): Promise<string | undefined>
   print(content: string): void
 }
 export type LoadUtils = {
@@ -224,9 +224,9 @@ export class IOV implements ValueBase {
     public inst: string,
     public argv: Value[],
     public continuation: (
-      doIO: (ioValue: IOV) => NonIOStrictValue,
+      doIO: (ioValue: IOV) => Promise<NonIOStrictValue>,
       ioUtils: IOUtils
-    ) => StrictValue
+    ) => Promise<StrictValue>
   ) {}
 
   asKey(strict: StrictFn): string {

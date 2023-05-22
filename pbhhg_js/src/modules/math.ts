@@ -1,7 +1,7 @@
-import { wrapNumber } from '@/builtins/arithmetics.js'
-import * as AS from '../abstractSyntax.js'
-import { JSNumber, abs, isclose, isinf, isnan, toComplex } from '../numbers.js'
-import { checkArity, checkType, isType } from '../utils.js'
+import * as AS from '../abstractSyntax'
+import { wrapNumber } from '../builtins/arithmetics'
+import { JSNumber, abs, isclose, isinf, isnan, toComplex } from '../numbers'
+import { checkArity, checkType, isType } from '../utils'
 
 function _rountToInf(x: number) {
   return x > 0 ? Math.ceil(x) : Math.floor(x)
@@ -67,7 +67,12 @@ export default function (
     }
   }
   const _atan1 = _wrap2('atan')
-  const _atan2 = _wrap(Math.atan2, 2, _wrapType(AS.FloatV), AS.RealV)
+  const _atan2 = _wrap(
+    (y, x) => Math.atan2(Number(y), Number(x)),
+    2,
+    _wrapType(AS.FloatV),
+    AS.RealV
+  )
   function _atan(metadata: AS.Metadata, argv: AS.Value[]) {
     return argv.length === 2 ? _atan2(metadata, argv) : _atan1(metadata, argv)
   }

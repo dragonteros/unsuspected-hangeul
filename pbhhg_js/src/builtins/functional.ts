@@ -1,5 +1,5 @@
-import * as AS from '../abstractSyntax.js'
-import { checkArity, checkType } from '../utils.js'
+import * as AS from '../abstractSyntax'
+import { checkArity, checkType } from '../utils'
 
 class PipeV extends AS.FunctionV {
   constructor(private funs: AS.Evaluation[]) {

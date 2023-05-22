@@ -1,9 +1,9 @@
 import Complex from 'complex.js'
 
-import * as AS from '../abstractSyntax.js'
-import * as E from '../error.js'
-import { arrayToInt, toComplex } from '../numbers.js'
-import { checkArity, checkType, isType, matchDefaults } from '../utils.js'
+import * as AS from '../abstractSyntax'
+import * as E from '../error'
+import { arrayToInt, toComplex } from '../numbers'
+import { checkArity, checkType, isType, matchDefaults } from '../utils'
 
 function _parseStrToNumber(
   metadata: AS.Metadata,
@@ -11,7 +11,7 @@ function _parseStrToNumber(
 ): [string, number] {
   const _argv = matchDefaults(metadata, argv, 2, [new AS.IntegerV(10n)])
   const [str] = checkType(metadata, [_argv[0]], [AS.StringV])
-  const [num] = checkType(metadata, [argv[1]], [AS.IntegerV])
+  const [num] = checkType(metadata, [_argv[1]], [AS.IntegerV])
   return [str.value, Number(num.value)]
 }
 

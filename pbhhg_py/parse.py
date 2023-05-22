@@ -74,9 +74,6 @@ def _merge_metadata(a: AS.Metadata, b: AS.Metadata) -> AS.Metadata:
 
 
 def tokenize(filename: str, sentence: str) -> list[tuple[str, AS.Metadata]]:
-    if not sentence:
-        return []
-
     lines = sentence.split("\n")
     characters = [
         (d, AS.Metadata(filename, i, j, j + 1, line))
@@ -85,6 +82,9 @@ def tokenize(filename: str, sentence: str) -> list[tuple[str, AS.Metadata]]:
         for d in normalize(c)
         if d
     ]
+    if not characters:
+        return []
+
     tokens: list[tuple[str, AS.Metadata]] = [characters[0]]
     for cur, metadata in characters[1:]:
         prev, prev_metadata = tokens[-1]

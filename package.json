@@ -1,17 +1,21 @@
 {
   "name": "unsuspected-hangeul",
   "version": "0.8.0",
-  "main": "pbhhg.js",
+  "main": "pbhhg_js/dist/pbhhg.js",
   "dependencies": {
     "complex.js": "^2.1.1",
     "readline-sync": "^1.4.10",
     "string-width": "^6.1.0"
   },
   "devDependencies": {
+    "@jest/globals": "^29.5.0",
+    "jest": "^29.5.0",
     "prettier": "^2.8.8",
+    "ts-jest": "^29.1.0",
+    "ts-loader": "^9.4.2",
     "typescript": "^5.0.4",
-    "vite": "^4.3.6",
-    "vitest": "^0.31.0"
+    "webpack": "^5.83.1",
+    "webpack-cli": "^5.1.1"
   },
   "repository": {
     "type": "git",
@@ -25,9 +29,9 @@
     "url": "https://github.com/dragonteros/unsuspected-hangeul/issues"
   },
   "scripts": {
-    "test": "python test/make_js_test.py && vitest run",
-    "build": "vite build",
-    "coverage": "vitest run --coverage",
-    "format": "prettier --write src"
+    "test2": "python test/make_js_test.py && jest",
+    "test": "jest",
+    "build": "webpack",
+    "format": "prettier --write pbhhg_js/src"
   }
 }

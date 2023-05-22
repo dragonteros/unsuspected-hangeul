@@ -4,7 +4,7 @@
     "module": "esnext",
     "strict": true,
 
-    "importHelpers": true,
+    "allowJs": true,
     "moduleResolution": "node",
     "resolveJsonModule": true,
 
@@ -13,17 +13,10 @@
 
     "skipLibCheck": true,
     "esModuleInterop": true,
-    "noEmit": true,
 
     "baseUrl": ".",
-    "paths": {
-      "@/*": ["pbhhg_js/*"]
-    },
-
-    "types": ["vitest/importMeta"],
     "lib": ["esnext", "dom"]
   },
-  "include": ["pbhhg_js/**/*.ts"],
-  "exclude": ["node_modules"],
-  "references": [{ "path": "./tsconfig.node.json" }]
+  "include": ["pbhhg_js/src/**/*.ts"],
+  "exclude": ["node_modules"]
 }

@@ -1,5 +1,5 @@
-import * as AS from '../abstractSyntax.js'
-import { checkArity, checkType, extractValue } from '../utils.js'
+import * as AS from '../abstractSyntax'
+import { checkArity, checkType, extractValue } from '../utils'
 
 export default function (
   procFunctional: AS.ProcFunctionalFn,

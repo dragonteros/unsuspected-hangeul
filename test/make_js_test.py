@@ -44,34 +44,42 @@ if __name__ == "__main__":
         if "test_base.py" in path or "test_utils.py" in path:
             continue
         print(path)
-        with open(path, "r") as reader:
+        with open(path, "r", encoding="utf-8") as reader:
             program = reader.read()
 
         module_node = ast.parse(program)
         generated.append(proc_module(module_node))
 
-    with open("test/test.js", "w") as writer:
+    with open("pbhhg_js/test/test.ts", "w", encoding="utf-8") as writer:
         writer.write(
-            """const pbhhg = require('../pbhhg_js/dist/pbhhg')
-const loadUtils = require('../pbhhg_js/node').loadUtils
-const assert = require('assert')
+            r"""import { describe, it } from '@jest/globals'
+import assert from 'assert'
+import { loadUtils } from '../cli'
+import { IOUtils } from '../src/abstractSyntax'
+import { main } from '../src/main'
 
-function makeInput (input) {
-  var lines = input? input.split('\\n'): ''
-  return () => lines.shift()
+function makeInput(input: string | undefined) {
+  var lines = input ? input.split('\n') : []
+  return () => Promise.resolve(lines.shift())
 }
 
-function _test (program, value, input, output) {
-  var printed = []
-  const ioUtils = {
+function _test(
+  program: string,
+  value: string,
+  input?: string,
+  output?: string
+) {
+  const printed: string[] = []
+  const ioUtils: IOUtils = {
     input: makeInput(input),
-    print: s => printed.push(s)
+    print: (s: string) => printed.push(s),
   }
-  const result = pbhhg.main(program, ioUtils, loadUtils, false)
-  assert.deepStrictEqual(result[0], value)
-  if (output) {
-    assert.strictEqual(printed.join('\\n').trim(), output.trim())
-  }
+  main('<test>', program, ioUtils, loadUtils, false).then((result) => {
+    assert.deepStrictEqual(result, [value])
+    if (output) {
+      assert.strictEqual(printed.join('\n').trim(), output.trim())
+    }
+  })
 }
 """
         )

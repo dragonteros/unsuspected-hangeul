@@ -1,5 +1,5 @@
 /* Parser for unsuspected hangeul. */
-import * as AS from './abstractSyntax.js'
+import * as AS from './abstractSyntax'
 
 /** Normalizer **/
 
@@ -66,7 +66,7 @@ function normalizeChar(c: string) {
 }
 
 export function normalize(sentence: string) {
-  const normalized = sentence.split('').map(normalizeChar).join('').trim()
+  const normalized = sentence.split('').map(normalizeChar).join('')
   return normalized.split(/( )/)
 }
 
@@ -75,7 +75,6 @@ function mergeMetadata(a: AS.Metadata, b: AS.Metadata) {
 }
 
 function tokenize(filename: string, sentence: string) {
-  if (sentence === '') return []
   const lines = sentence.split('\n')
   const characters = lines.flatMap((line, i) =>
     (line + '\n').split('').flatMap((c, j) =>
@@ -87,6 +86,8 @@ function tokenize(filename: string, sentence: string) {
         ])
     )
   )
+  if (characters.length === 0) return []
+
   let tokens = [characters[0]]
   for (const [cur, metadata] of characters.slice(1)) {
     const top = tokens.pop()
@@ -94,9 +95,10 @@ function tokenize(filename: string, sentence: string) {
     const [prev, prevMetadata] = top
     if (prev === ' ' && cur === ' ') {
       tokens.push([prev, prevMetadata])
-    } else if (prev !== ' ' && cur === ' ') {
+    } else if (prev !== ' ' && cur !== ' ') {
       tokens.push([prev + cur, mergeMetadata(prevMetadata, metadata)])
     } else {
+      tokens.push([prev, prevMetadata])
       tokens.push([cur, metadata])
     }
   }
@@ -173,7 +175,7 @@ function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
       // AS.ArgRef
       const relA = stack.pop()
       if (relA == null) throw Error('Internal::parseToken::EMPTY_STACK')
-      const relF = +trailer
+      const relF = Number(parseNumber(trailer))
       stack.push(new AS.ArgRef(metadata, relA, relF))
     } else {
       // AS.FunRef

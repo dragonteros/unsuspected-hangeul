@@ -1,6 +1,6 @@
 /** Useful utilities **/
-import * as AS from './abstractSyntax.js'
-import * as E from './error.js'
+import * as AS from './abstractSyntax'
+import * as E from './error'
 
 export function isLiteralExpr(
   expr: AS.Value
@@ -12,7 +12,8 @@ export function extractValue<T>(arg: { value: T }): T {
   return arg.value
 }
 
-export function getLength(arg: { length: number } | ArrayBuffer) {
+export function getLength<T>(arg: T[] | string | ArrayBuffer) {
+  if (typeof arg === 'string') return arg.length
   return 'length' in arg ? arg.length : arg.byteLength
 }
 

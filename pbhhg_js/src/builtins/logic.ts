@@ -1,12 +1,6 @@
-import * as AS from '../abstractSyntax.js'
-import { eq, JSNumber } from '../numbers.js'
-import {
-  allEqual,
-  checkArity,
-  checkType,
-  extractValue,
-  isType,
-} from '../utils.js'
+import * as AS from '../abstractSyntax'
+import { eq, JSNumber } from '../numbers'
+import { allEqual, checkArity, checkType, extractValue, isType } from '../utils'
 
 function _allNumbersEqual(nums: JSNumber[]) {
   if (nums.length === 0) return true

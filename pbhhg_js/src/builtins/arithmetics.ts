@@ -1,15 +1,15 @@
 import Complex from 'complex.js'
 
-import * as AS from '../abstractSyntax.js'
-import * as E from '../error.js'
-import { add, div, mod, mul, pow } from '../numbers.js'
+import * as AS from '../abstractSyntax'
+import * as E from '../error'
+import { add, div, mod, mul, pow } from '../numbers'
 import {
   checkArity,
   checkMinArity,
   checkType,
   extractValue,
   isType,
-} from '../utils.js'
+} from '../utils'
 
 function _joinArrayBuffer(bufs: ArrayBuffer[]) {
   const size = bufs.map((a) => a.byteLength).reduce((a, b) => a + b, 0)
