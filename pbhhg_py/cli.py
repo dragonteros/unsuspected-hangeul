@@ -40,7 +40,7 @@ def run(
     if len(exprs) > 1:
         err = AS.ErrorValue(
             tuple(expr.metadata for expr in exprs),
-            f"모듈에는 하나의 표현식만 있어야 하는데 {len(exprs)}개의 표현식이 있습니다.",
+            f"모듈에는 표현식이 하나만 있어야 하는데 {len(exprs)}개가 있습니다.",
             (),
         )
         raise AS.UnsuspectedHangeulError(err)
@@ -74,7 +74,7 @@ def _print_main(filename: str, arg: str, warn_multiple: bool = True):
     values = main.main(filename, arg)
     if warn_multiple and len(values) >= 2:
         print(
-            "[!] 주의: 한 줄에 {}개의 객체를 해석했습니다.".format(len(values)),
+            f"[!] 주의: 한 줄에 {len(values)}개의 객체를 해석했습니다.",
             file=sys.stderr,
         )
     print(" ".join(values), flush=True)

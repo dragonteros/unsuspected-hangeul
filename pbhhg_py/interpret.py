@@ -339,7 +339,7 @@ def find_builtin(metadata: AS.Metadata, func_id: int):
     if inst in BUITLINS:
         return BUITLINS[inst]
     raise error.UnsuspectedHangeulNotFoundError(
-        metadata, f"{inst}라는 이름의 기본 제공 함수를 찾지 못했습니다."
+        metadata, f"{inst}이라는 이름의 기본 제공 함수를 찾지 못했습니다."
     )
 
 

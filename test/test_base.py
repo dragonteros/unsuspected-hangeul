@@ -5,6 +5,11 @@ import unittest
 from pbhhg_py.main import main
 
 
+class _TestIO(io.BytesIO):
+    def close(self) -> None:
+        pass
+
+
 class TestBase(unittest.TestCase):
     def _assert_execute(
         self,
@@ -13,10 +18,10 @@ class TestBase(unittest.TestCase):
         stdin: str = "",
         stdout: str = "",
     ):
-        reader = io.BytesIO(stdin.encode("utf-8"))
+        reader = _TestIO(stdin.encode("utf-8"))
         sys.stdin = io.TextIOWrapper(reader, encoding="utf-8")
 
-        writer = io.BytesIO()
+        writer = _TestIO()
         sys.stdout = io.TextIOWrapper(writer, encoding="utf-8")
 
         result = main("<test file>", program, False)

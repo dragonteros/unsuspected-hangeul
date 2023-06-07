@@ -49,7 +49,7 @@ export default function (
       [AS.StringV, ...AS.NumberV]
     )
     if (arg instanceof AS.StringV) return arg
-    return new AS.StringV(arg.toString())
+    return new AS.StringV(arg.format(strict))
   }
   function _integer(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, [1, 2])
@@ -65,7 +65,14 @@ export default function (
       return new AS.IntegerV(BigInt(value))
     }
     const [digits, radix] = _parseStrToNumber(metadata, _argv)
-    return new AS.IntegerV(arrayToInt(digits, radix))
+    try {
+      return new AS.IntegerV(arrayToInt(digits, radix))
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new E.UnsuspectedHangeulValueError(metadata, error.message)
+      }
+      throw error
+    }
   }
   function _float(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, [1, 2])
@@ -84,16 +91,23 @@ export default function (
       if (isNaN(num))
         throw new E.UnsuspectedHangeulValueError(
           metadata,
-          `문자열 '${digits}'을 실수값으로 변환할 수 없습니다.`
+          `다음 문자열을 실수값으로 변환할 수 없습니다: '${digits}'`
         )
       return new AS.FloatV(num)
     }
     const splitted = digits.trim().split('.')
     let significant = splitted.join('')
     if (significant[0] === '+') significant = significant.slice(1)
-    const _significant = parseInt(significant, radix)
-    const order = splitted.length > 1 ? splitted[1].length : 0
-    return new AS.FloatV(_significant / radix ** order)
+    try {
+      const _significant = Number(arrayToInt(significant, radix))
+      const order = splitted.length > 1 ? splitted[1].length : 0
+      return new AS.FloatV(_significant / radix ** order)
+    } catch (error) {
+      throw new E.UnsuspectedHangeulValueError(
+        metadata,
+        `다음 문자열을 실수값으로 변환할 수 없습니다: '${digits}'`
+      )
+    }
   }
   function _complex(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, [1, 2])
@@ -101,10 +115,22 @@ export default function (
       AS.StringV,
       ...AS.NumberV,
     ])
-    const values = _argv.map((arg) => toComplex(arg.value))
-    if (argv.length === 1) return new AS.ComplexV(values[0])
-
+    if (argv.length === 1) {
+      const arg = _argv[0].value
+      try {
+        return new AS.ComplexV(toComplex(arg))
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new E.UnsuspectedHangeulValueError(
+            metadata,
+            `다음 문자열을 복소수값으로 변환할 수 없습니다: ${arg}`
+          )
+        }
+        throw error
+      }
+    }
     checkType(metadata, _argv, AS.NumberV)
+    const values = _argv.map((arg) => toComplex(arg.value))
     const re = values[0].re - values[1].im
     const im = values[0].im + values[1].re
     return new AS.ComplexV(Complex({ re, im }))
@@ -112,6 +138,11 @@ export default function (
   function _nil(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, 0)
     return new AS.NilV()
+  }
+  function _exception(metadata: AS.Metadata, argv: AS.Value[]) {
+    const _argv = argv.map(strict)
+    const message = `사용자 예외: ${_argv.map((v) => v.format(strict))}`
+    return new AS.ErrorV([metadata], message, _argv)
   }
 
   return {
@@ -122,5 +153,6 @@ export default function (
     ㅅㅅ: _float,
     ㅂㅅ: _complex,
     ㅂㄱ: _nil,
+    ㄷㅂ: _exception,
   }
 }

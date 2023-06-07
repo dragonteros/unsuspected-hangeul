@@ -1,5 +1,6 @@
 /* Parser for unsuspected hangeul. */
 import * as AS from './abstractSyntax'
+import * as E from './error'
 
 /** Normalizer **/
 
@@ -147,7 +148,10 @@ function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
       // AS.FunCall
       const _arity = Number(parseNumber(arity))
       if (_arity < 0) {
-        throw SyntaxError(`함수 호출 시 ${_arity}개의 인수를 요구했습니다.`)
+        throw new E.UnsuspectedHangeulSyntaxError(
+          metadata,
+          `함수 호출 시 ${_arity}개의 인수를 요구했습니다.`
+        )
       }
 
       const fun = stack.pop()
@@ -157,7 +161,8 @@ function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
       } else {
         const argv = stack.splice(-_arity, _arity)
         if (argv.length < _arity) {
-          throw SyntaxError(
+          throw new E.UnsuspectedHangeulSyntaxError(
+            metadata,
             `함수 호출 시 ${_arity}개의 인수를 요구했으나 표현식이 ${argv.length}개밖에 없습니다.`
           )
         }
@@ -182,8 +187,9 @@ function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
       const relF = stack.pop()
       if (relF == null) throw Error('Internal::parseToken::EMPTY_STACK')
       if (!(relF instanceof AS.Literal)) {
-        throw SyntaxError(
-          `함수 참조 시에는 정수 리터럴만 허용되는데 ${relF}를 받았습니다.`
+        throw new E.UnsuspectedHangeulSyntaxError(
+          metadata,
+          `함수 참조 시에는 정수 리터럴만 허용됩니다.`
         )
       }
       stack.push(new AS.FunRef(metadata, Number(relF.value)))

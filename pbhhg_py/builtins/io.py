@@ -36,6 +36,7 @@ class File(AS.Function):
         command_str = parse.encode_number(command.value)
         try:
             _fn = {
+                "ㄷ": self._close,  # 닫다
                 "ㄹ": self._read,
                 "ㅈㄹ": self._write,  # 출력
                 "ㅈ": self._seek_or_tell,  # 찾다
@@ -50,6 +51,13 @@ class File(AS.Function):
             raise error.UnsuspectedHangeulOSError(
                 metadata, f"운영체제 오류 errno={e.errno}", e.errno
             )
+
+    def _close(
+        self, metadata: AS.Metadata, argv: Sequence[AS.Value]
+    ) -> EvalIOContext:
+        utils.check_arity(metadata, argv, 1)
+        self._file.close()
+        return (yield from _return(metadata, [AS.Nil()]))
 
     def _read(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
@@ -86,11 +94,17 @@ class File(AS.Function):
                 [_whence] = yield from utils.match_arguments(
                     metadata, [argv[-3]], AS.Integer
                 )
-                whence = {
-                    "ㅅㅈㅂㄷ": io.SEEK_SET,  # 시작부터
-                    "ㅈㄱㅂㄷ": io.SEEK_CUR,  # 지금부터
-                    "ㄱㅂㄷ": io.SEEK_END,  # 끝부터
-                }[parse.encode_number(_whence.value)]
+                try:
+                    whence = {
+                        "ㅅㅈㅂㄷ": io.SEEK_SET,  # 시작부터
+                        "ㅈㄱㅂㄷ": io.SEEK_CUR,  # 지금부터
+                    }[parse.encode_number(_whence.value)]
+                except KeyError:
+                    raise error.UnsuspectedHangeulValueError(
+                        metadata,
+                        f"파일 객체의 ㅈ 명령에 주는 위치 인수로 {_whence.value}은 "
+                        "적절하지 않습니다.",
+                    ) from None
             pos = self._file.seek(offset.value, whence)
         return (yield from _return(metadata, [AS.Integer(pos)]))
 

@@ -54,7 +54,7 @@ export default function (
       return new AS.BooleanV(_listedEquals(_argv.map((arg) => arg.argv)))
     } else if (isType(_argv, AS.NumberV)) {
       return new AS.BooleanV(_allNumbersEqual(_argv.map((arg) => arg.value)))
-    } else if (isType(_argv, [AS.ListV])) {
+    } else if (isType(_argv, [AS.ListV, AS.ErrorV])) {
       return new AS.BooleanV(_listedEquals(_argv.map(extractValue)))
     } else if (isType(_argv, [AS.BytesV])) {
       return new AS.BooleanV(_allBytesEqual(_argv.map(extractValue)))

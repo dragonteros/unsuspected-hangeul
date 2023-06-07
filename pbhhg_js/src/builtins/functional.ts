@@ -19,7 +19,7 @@ class CollectV extends AS.FunctionV {
   execute(metadata: AS.Metadata, args: AS.Value[]) {
     checkArity(metadata, args, 1)
     const seq = this.strict(args[0])
-    const [_seq] = checkType(metadata, [seq], [AS.ListV])
+    const [_seq] = checkType(metadata, [seq], [AS.ListV, AS.ErrorV])
     return this.fn(metadata, _seq.value)
   }
 }

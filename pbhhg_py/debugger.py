@@ -204,7 +204,7 @@ def _interact(
                     for value in values
                 ]
                 print(*formatted)
-            except Exception as err:
+            except AS.UnsuspectedHangeulError as err:
                 print("Error:", err)
             continue
 
@@ -257,7 +257,7 @@ def _interact(
 
 class Debugger(interpret.DebuggerBase):
     def __init__(self):
-        print(f"[평범한 한글 디버거. 사용법을 보려면 '안내'라고 입력하세요.]")
+        print("[평범한 한글 디버거. 사용법을 보려면 '안내'라고 입력하세요.]")
         self._state = _DebugState()
         self._stop_condition: _StopCondition = _stop_always
 

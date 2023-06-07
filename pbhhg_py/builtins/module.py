@@ -41,7 +41,7 @@ def _load_from_path(filepath: str):
     if len(exprs) != 1:
         raise error.UnsuspectedHangeulValueError(
             exprs[0].metadata,
-            f"모듈에는 하나의 표현식만 있어야 하는데 {len(exprs)}개의 표현식이 있습니다.",
+            f"모듈에는 표현식이 하나만 있어야 하는데 {len(exprs)}개가 있습니다.",
         )
     env = AS.Env([], [])
     module = AS.Expr(exprs[0], env)

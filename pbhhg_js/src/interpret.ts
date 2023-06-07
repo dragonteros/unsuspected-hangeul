@@ -5,6 +5,7 @@ import { checkArity, checkType, getLength, isLiteralExpr } from './utils'
 
 import buildArithmetics from './builtins/arithmetics'
 import buildConstructors from './builtins/constructors'
+import buildControl from './builtins/control'
 import buildFunctional from './builtins/functional'
 import buildIO from './builtins/io'
 import buildLogic from './builtins/logic'
@@ -19,6 +20,7 @@ let isBuilt = false
 const _builders = [
   buildArithmetics,
   buildConstructors,
+  buildControl,
   buildFunctional,
   buildIO,
   buildLogic,
@@ -51,7 +53,7 @@ function findBuiltin(
   if (builtinFun) return builtinFun
   throw new E.UnsuspectedHangeulNotFoundError(
     metadata,
-    `${inst}라는 이름의 기본 제공 함수를 찾지 못했습니다.`
+    `${inst}이라는 이름의 기본 제공 함수를 찾지 못했습니다.`
   )
 }
 

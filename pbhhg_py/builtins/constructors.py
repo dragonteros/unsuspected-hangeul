@@ -69,7 +69,7 @@ def build_tbl(
             return AS.Integer(int(string, base))
         except ValueError:
             raise error.UnsuspectedHangeulValueError(
-                metadata, f"문자열 '{string}'을 정수값으로 변환할 수 없습니다."
+                metadata, f"다음 문자열을 정수값으로 변환할 수 없습니다.: '{string}'"
             ) from None
 
     def _float(
@@ -88,7 +88,7 @@ def build_tbl(
                 return AS.Float(float(string))
             except ValueError:
                 raise error.UnsuspectedHangeulValueError(
-                    metadata, f"문자열 '{string}'을 실수값으로 변환할 수 없습니다."
+                    metadata, f"다음 문자열을 실수값으로 변환할 수 없습니다: '{string}'"
                 ) from None
         integer, frac = utils.match_defaults(
             metadata, string.strip().split("."), 2, [""]
@@ -97,7 +97,7 @@ def build_tbl(
             significant = int(integer + frac, base=base)
         except ValueError:
             raise error.UnsuspectedHangeulValueError(
-                metadata, f"문자열 '{string}'을 실수값으로 변환할 수 없습니다."
+                metadata, f"다음 문자열을 실수값으로 변환할 수 없습니다: '{string}'"
             ) from None
         return AS.Float(significant / base ** len(frac))
 
@@ -116,7 +116,12 @@ def build_tbl(
         argv = utils.check_type(metadata, argv, AS.String)
         utils.check_arity(metadata, argv, 1)
         arg = argv[0].value.replace("i", "j")
-        return AS.Complex(complex(arg))
+        try:
+            return AS.Complex(complex(arg))
+        except ValueError:
+            raise error.UnsuspectedHangeulValueError(
+                metadata, f"다음 문자열을 복소수값으로 변환할 수 없습니다: '{arg}'"
+            ) from None
 
     def _nil(
         metadata: AS.Metadata, argv: Sequence[AS.Value]

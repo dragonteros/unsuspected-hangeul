@@ -106,7 +106,7 @@ def is_same_type(argv: Sequence[AS.StrictValue]) -> bool:
     return all_equal([type(arg) for arg in argv])
 
 
-def _format_list(strings: Iterable[str], conj: str = "and"):
+def _format_list(strings: Iterable[str], conj: str = ", "):
     return conj.join(strings)
 
 
@@ -120,7 +120,7 @@ def check_type(
     arg_type_formatted = _format_list(type(a).__name__ for a in argv)
     raise error.UnsuspectedHangeulTypeError(
         metadata,
-        f"인수를 {types} 중에서 주어야 하는데 {arg_type_formatted}를 주었습니다.",
+        f"인수를 {types} 중에서 주어야 하는데 {josa(arg_type_formatted, '을', '를')} 주었습니다.",
     )
 
 
@@ -206,3 +206,10 @@ def guessed_wrap(arg: Any) -> AS.StrictValue:
         if isinstance(arg, t):
             return T(arg)
     assert False
+
+
+def josa(content: str, particle_batchim: str, particle_no_batchim: str) -> str:
+    if not (ord("가") <= ord(content[-1]) <= ord("힣")):
+        return content + particle_batchim  # no hangeul
+    batchim = (ord(content[-1]) - ord("가")) % 28
+    return content + (particle_batchim if batchim else particle_no_batchim)

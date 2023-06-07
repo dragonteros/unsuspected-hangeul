@@ -24,6 +24,13 @@ export class UnsuspectedHangeulArithmeticError extends UnsuspectedHangeulBuiltin
   }
 }
 
+export class UnsuspectedHangeulSyntaxError extends UnsuspectedHangeulBuiltinError {
+  constructor(metadata: AS.Metadata, message: string) {
+    const code = parseNumber('ㅁㅂ') // 문법
+    super(metadata, message, [code])
+  }
+}
+
 export class UnsuspectedHangeulTypeError extends UnsuspectedHangeulBuiltinError {
   constructor(metadata: AS.Metadata, message: string) {
     const code = parseNumber('ㄱ') // 꼴

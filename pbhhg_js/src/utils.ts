@@ -1,4 +1,5 @@
 /** Useful utilities **/
+import { josa } from 'josa'
 import * as AS from './abstractSyntax'
 import * as E from './error'
 
@@ -79,8 +80,10 @@ export function checkType<T extends AS.StrictValueType>(
   )
   throw new E.UnsuspectedHangeulTypeError(
     metadata,
-    `인수를 ${_formatArray(desiredTypeNames)} 중에서 주어야 하는데 ` +
-      `${_formatArray(argTypeNames)}를 주었습니다.`
+    josa(
+      `인수를 ${_formatArray(desiredTypeNames)} 중에서 주어야 하는데 ` +
+        `${_formatArray(argTypeNames)}#{를} 주었습니다.`
+    )
   )
 }
 

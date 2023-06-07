@@ -26,6 +26,12 @@ class UnsuspectedHangeulArithmeticError(UnsuspectedHangeulBuiltinError):
         super().__init__(metadata, message, [code])
 
 
+class UnsuspectedHangeulSyntaxError(UnsuspectedHangeulBuiltinError):
+    def __init__(self, metadata: AS.Metadata, message: str):
+        code = parse.parse_number("ㅁㅂ")  # 문법
+        super().__init__(metadata, message, [code])
+
+
 class UnsuspectedHangeulTypeError(UnsuspectedHangeulBuiltinError):
     def __init__(self, metadata: AS.Metadata, message: str):
         code = parse.parse_number("ㄱ")  # 꼴

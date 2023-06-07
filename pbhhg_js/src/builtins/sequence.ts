@@ -14,7 +14,10 @@ export default function (
 ): Record<string, AS.Evaluation> {
   function _len(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, 1)
-    const [seq] = checkType(metadata, argv.map(strict), AS.SequenceV)
+    const [seq] = checkType(metadata, argv.map(strict), [
+      ...AS.SequenceV,
+      AS.ErrorV,
+    ])
     if (seq instanceof AS.BytesV) {
       return new AS.IntegerV(BigInt(seq.value.byteLength))
     }

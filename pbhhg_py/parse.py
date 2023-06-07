@@ -3,6 +3,8 @@ import re
 import unicodedata
 
 from pbhhg_py import abstract_syntax as AS
+from pbhhg_py import error
+from pbhhg_py import utils
 
 # TABLES
 # note all ㅇ and ㅎ has a preceding space in following tables
@@ -140,15 +142,18 @@ def parse_token(
         if arity:  # FunCall
             arity = parse_number(arity)
             if arity < 0:
-                raise SyntaxError(f"함수 호출 시 {arity}개의 인수를 요구했습니다.")
+                raise error.UnsuspectedHangeulSyntaxError(
+                    metadata, f"함수 호출 시 {arity}개의 인수를 요구했습니다."
+                )
 
             fun = stack.pop()
             argv = stack[-arity:] if arity else []
             rest = stack[:-arity] if arity else stack
             if len(argv) < arity:
-                raise SyntaxError(
+                raise error.UnsuspectedHangeulSyntaxError(
+                    metadata,
                     f"함수 호출 시 {arity}개의 인수를 요구했으나 "
-                    f"표현식이 {len(argv)}개밖에 없습니다."
+                    f"표현식이 {len(argv)}개밖에 없습니다.",
                 )
 
             return rest + [AS.FunCall(fun, tuple(argv), metadata)]
@@ -168,7 +173,9 @@ def parse_token(
         else:  # FunRef
             relF = stack.pop()
             if not isinstance(relF, AS.Literal):
-                raise SyntaxError(f"함수 참조 시에는 정수 리터럴만 허용되는데 {relF}를 받았습니다.")
+                raise error.UnsuspectedHangeulSyntaxError(
+                    metadata, "함수 참조 시에는 정수 리터럴만 허용됩니다."
+                )
             relF = relF.value
             return stack + [AS.FunRef(relF, metadata)]
 

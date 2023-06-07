@@ -140,19 +140,46 @@ export default function (
       }
     }
     checkArity(metadata, _argv, 2)
-    return wrapNumber(pow(_argv[0].value, _argv[1].value))
+    try {
+      return wrapNumber(pow(_argv[0].value, _argv[1].value))
+    } catch (error) {
+      if (error instanceof Error) {
+        throw new E.UnsuspectedHangeulArithmeticError(metadata, error.message)
+      }
+      throw error
+    }
   }
 
   function _integerDivision(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, 2)
     const _argv = checkType(metadata, argv.map(strict), AS.RealV)
-    return wrapNumber(div(_argv[0].value, _argv[1].value))
+    try {
+      return wrapNumber(div(_argv[0].value, _argv[1].value))
+    } catch (error) {
+      if (error instanceof RangeError) {
+        throw new E.UnsuspectedHangeulArithmeticError(
+          metadata,
+          '0의 역수를 구하려고 했습니다.'
+        )
+      }
+      throw error
+    }
   }
 
   function _remainder(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, 2)
     const _argv = checkType(metadata, argv.map(strict), AS.RealV)
-    return wrapNumber(mod(_argv[0].value, _argv[1].value))
+    try {
+      return wrapNumber(mod(_argv[0].value, _argv[1].value))
+    } catch (error) {
+      if (error instanceof RangeError) {
+        throw new E.UnsuspectedHangeulArithmeticError(
+          metadata,
+          '0의 역수를 구하려고 했습니다.'
+        )
+      }
+      throw error
+    }
   }
 
   return {

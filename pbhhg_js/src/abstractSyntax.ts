@@ -53,7 +53,16 @@ export type IOUtils = {
   input(): Promise<string | undefined>
   print(content: string): void
 }
+export type File = {
+  close(): void
+  read(numBytes: number): ArrayBuffer
+  write(bytes: ArrayBuffer): number
+  seek(offset: number, whence: 'SEEK_SET' | 'SEEK_CUR'): number
+  tell(): number
+  truncate(size?: number): number
+}
 export type LoadUtils = {
+  open(path: string | number, flags: 'a' | 'a+' | 'r' | 'r+' | 'w' | 'w+'): File
   load(location: string): string
   isFile(location: string): boolean
   listdir(location: string): string[]
@@ -76,13 +85,16 @@ export class UnsuspectedHangeulError extends Error {
       message += `${metadata.start_col + 1}~${metadata.end_col + 1}번째 글자:\n`
       message += metadata.toString() + '\n'
     }
-    super(message)
+    super(message + '\n' + err.message)
   }
 }
 
 /* Values */
-interface ValueBase {
-  asKey(strict: StrictFn): string
+abstract class ValueBase {
+  abstract format(strict: StrictFn): string
+  asKey(strict: StrictFn): string {
+    return this.format(strict)
+  }
 }
 
 function _isPossibleInt(num: number) {
@@ -95,21 +107,22 @@ function _formatFloat(num: number) {
   return num > 0 ? 'inf' : '-inf'
 }
 
-export class IntegerV implements ValueBase {
+export class IntegerV extends ValueBase {
   static typeName = '정수'
-  constructor(public value: bigint) {}
-  toString() {
-    return this.value.toString()
+  constructor(public value: bigint) {
+    super()
   }
-  asKey(strict: StrictFn) {
-    return this.toString()
+  format(strict: StrictFn) {
+    return this.value.toString()
   }
 }
 
-export class FloatV implements ValueBase {
+export class FloatV extends ValueBase {
   static typeName = '실수'
-  constructor(public value: number) {}
-  toString() {
+  constructor(public value: number) {
+    super()
+  }
+  format(strict: StrictFn) {
     const str = _formatFloat(this.value)
     const trailing = _isPossibleInt(this.value) ? '.0' : ''
     return str + trailing
@@ -119,65 +132,69 @@ export class FloatV implements ValueBase {
   }
 }
 
-export class ComplexV implements ValueBase {
+export class ComplexV extends ValueBase {
   static typeName = '복소수'
-  constructor(public value: Complex) {}
-
-  toString() {
+  constructor(public value: Complex) {
+    super()
+  }
+  format(strict: StrictFn) {
     const re = this.value.re
     const im = this.value.im
     const reStr = _formatFloat(re) + (im < 0 ? '' : '+')
     const imStr = im == 1 ? '' : im == -1 ? '-' : _formatFloat(im)
     return (re === 0 ? '' : reStr) + imStr + 'i'
   }
-
   asKey(strict: StrictFn): string {
-    return this.value.im ? this.toString() : _formatFloat(this.value.re)
+    return this.value.im ? this.format(strict) : _formatFloat(this.value.re)
   }
 }
 
-export class BooleanV implements ValueBase {
+export class BooleanV extends ValueBase {
   static typeName = '논릿값'
-  constructor(public value: boolean) {}
-  toString() {
+  constructor(public value: boolean) {
+    super()
+  }
+  format(strict: StrictFn) {
     return this.value ? 'True' : 'False'
   }
-  asKey(strict: StrictFn) {
-    return this.toString()
-  }
 }
 
-export class ListV implements ValueBase {
+export class ListV extends ValueBase {
   static typeName = '목록'
-  constructor(public value: Value[]) {}
+  constructor(public value: Value[]) {
+    super()
+  }
+  format(strict: StrictFn): string {
+    const children = this.value.map((value) => strict(value).format(strict))
+    return `[${children.join(', ')}]`
+  }
   asKey(strict: StrictFn): string {
     const children = this.value.map((value) => strict(value).asKey(strict))
     return `[${children.join(', ')}]`
   }
 }
 
-export class StringV implements ValueBase {
+export class StringV extends ValueBase {
   static typeName = '문자열'
-  constructor(public value: string) {}
-  toString() {
-    return "'" + this.value + "'"
+  constructor(public value: string) {
+    super()
   }
-  asKey(strict: StrictFn): string {
-    return this.toString()
+  format(strict: StrictFn) {
+    return "'" + this.value + "'"
   }
 }
 
-export class BytesV implements ValueBase {
+export class BytesV extends ValueBase {
   static typeName = '바이트열'
   private str?: string
-  constructor(public value: ArrayBuffer) {}
-
+  constructor(public value: ArrayBuffer) {
+    super()
+  }
   formatByte(c: number) {
     const s = c.toString(16).toUpperCase()
     return '\\x' + ('0' + s).slice(-2)
   }
-
-  toString() {
+  format(strict: StrictFn) {
     if (!this.str) {
       const arr = Array.from(new Uint8Array(this.value))
       const formatted = arr.map(this.formatByte)
@@ -185,17 +202,15 @@ export class BytesV implements ValueBase {
     }
     return this.str
   }
-
-  asKey(strict: StrictFn): string {
-    return this.toString()
-  }
 }
 
-export class DictV implements ValueBase {
+export class DictV extends ValueBase {
   static typeName = '사전'
   private _keys?: string[]
   private _values?: Value[]
-  constructor(public value: Record<string, Value>) {}
+  constructor(public value: Record<string, Value>) {
+    super()
+  }
 
   keys() {
     if (!this._keys) {
@@ -203,7 +218,6 @@ export class DictV implements ValueBase {
     }
     return this._keys
   }
-
   values() {
     if (!this._values) {
       this._values = this.keys().map((k) => this.value[k])
@@ -211,6 +225,11 @@ export class DictV implements ValueBase {
     return this._values
   }
 
+  format(strict: StrictFn): string {
+    const values = this.values().map((v) => strict(v).format(strict))
+    const pairs = this.keys().map((k, i) => k + ': ' + values[i])
+    return '{' + pairs.join(', ') + '}'
+  }
   asKey(strict: StrictFn): string {
     const values = this.values().map((v) => strict(v).asKey(strict))
     const pairs = this.keys().map((k, i) => k + ': ' + values[i])
@@ -218,8 +237,9 @@ export class DictV implements ValueBase {
   }
 }
 
-export class IOV implements ValueBase {
+export class IOV extends ValueBase {
   static typeName = '드나듦'
+
   constructor(
     public inst: string,
     public argv: Value[],
@@ -227,8 +247,16 @@ export class IOV implements ValueBase {
       doIO: (ioValue: IOV) => Promise<NonIOStrictValue>,
       ioUtils: IOUtils
     ) => Promise<StrictValue>
-  ) {}
+  ) {
+    super()
+  }
 
+  format(strict: StrictFn): string {
+    const formatted = this.argv
+      .map((value) => strict(value).format(strict))
+      .join(', ')
+    return `<드나듦 ${this.inst}: [${formatted}]>`
+  }
   asKey(strict: StrictFn): string {
     const formatted = this.argv
       .map((value) => strict(value).asKey(strict))
@@ -237,27 +265,27 @@ export class IOV implements ValueBase {
   }
 }
 
-export class NilV implements ValueBase {
+export class NilV extends ValueBase {
   static typeName = '빈값'
-  constructor() {}
-  toString() {
-    return 'Nil'
+  constructor() {
+    super()
   }
-  asKey(strict: StrictFn): string {
+  format(strict: StrictFn): string {
     return 'Nil'
   }
 }
 
 let FUNCTION_ID_GEN = 0
-export abstract class FunctionV implements ValueBase {
+export abstract class FunctionV extends ValueBase {
   static typeName = '함수'
   private id: number
   protected str: string
   constructor(adj = '') {
+    super()
     this.id = FUNCTION_ID_GEN++
     this.str = '<' + adj + 'Function>'
   }
-  toString() {
+  format(strict: StrictFn) {
     return this.str
   }
   asKey(strict: StrictFn): string {
@@ -290,15 +318,21 @@ export class BuiltinModuleV extends FunctionV {
   }
 }
 
-export class ErrorV implements ValueBase {
+export class ErrorV extends ValueBase {
   static typeName = '예외'
   constructor(
     public metadatas: Metadata[],
     public message: string,
     public value: StrictValue[]
-  ) {}
-  asKey(strict: StrictFn) {
-    const formatted = this.value.map(strict).join(', ')
+  ) {
+    super()
+  }
+  format(strict: StrictFn): string {
+    const formatted = this.value.map((v) => v.format(strict)).join(', ')
+    return `<예외: [${formatted}]>`
+  }
+  asKey(strict: StrictFn): string {
+    const formatted = this.value.map((v) => v.asKey(strict)).join(', ')
     return `<예외: [${formatted}]>`
   }
 }
