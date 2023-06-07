@@ -176,11 +176,13 @@ export class ListV extends ValueBase {
 
 export class StringV extends ValueBase {
   static typeName = '문자열'
-  constructor(public value: string) {
+  public value: string[]
+  constructor(public str: string) {
     super()
+    this.value = Array.from(str)
   }
   format(strict: StrictFn) {
-    return "'" + this.value + "'"
+    return "'" + this.str + "'"
   }
 }
 

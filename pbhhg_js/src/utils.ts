@@ -13,8 +13,7 @@ export function extractValue<T>(arg: { value: T }): T {
   return arg.value
 }
 
-export function getLength<T>(arg: T[] | string | ArrayBuffer) {
-  if (typeof arg === 'string') return arg.length
+export function getLength(arg: { length: number } | ArrayBuffer) {
   return 'length' in arg ? arg.length : arg.byteLength
 }
 

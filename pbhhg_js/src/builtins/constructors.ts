@@ -12,7 +12,7 @@ function _parseStrToNumber(
   const _argv = matchDefaults(metadata, argv, 2, [new AS.IntegerV(10n)])
   const [str] = checkType(metadata, [_argv[0]], [AS.StringV])
   const [num] = checkType(metadata, [_argv[1]], [AS.IntegerV])
-  return [str.value, Number(num.value)]
+  return [str.str, Number(num.value)]
 }
 
 export default function (
@@ -116,7 +116,7 @@ export default function (
       ...AS.NumberV,
     ])
     if (argv.length === 1) {
-      const arg = _argv[0].value
+      const arg = _argv[0] instanceof AS.StringV ? _argv[0].str : _argv[0].value
       try {
         return new AS.ComplexV(toComplex(arg))
       } catch (error) {
@@ -129,8 +129,8 @@ export default function (
         throw error
       }
     }
-    checkType(metadata, _argv, AS.NumberV)
-    const values = _argv.map((arg) => toComplex(arg.value))
+    const __argv = checkType(metadata, _argv, AS.NumberV)
+    const values = __argv.map((arg) => toComplex(arg.value))
     const re = values[0].re - values[1].im
     const im = values[0].im + values[1].re
     return new AS.ComplexV(Complex({ re, im }))

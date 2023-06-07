@@ -105,7 +105,7 @@ export default function (
 
     if (isType(first, [AS.StringV])) {
       const _argv = checkType(metadata, argv.map(strict), [AS.StringV])
-      return new AS.StringV(_argv.map(extractValue).join(''))
+      return new AS.StringV(_argv.map((arg) => arg.str).join(''))
     }
     if (isType(first, [AS.BytesV])) {
       const _argv = checkType(metadata, argv.map(strict), [AS.BytesV])

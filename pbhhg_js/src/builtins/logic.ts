@@ -59,7 +59,7 @@ export default function (
     } else if (isType(_argv, [AS.BytesV])) {
       return new AS.BooleanV(_allBytesEqual(_argv.map(extractValue)))
     } else if (isType(_argv, [AS.StringV])) {
-      return new AS.BooleanV(allEqual(_argv.map(extractValue)))
+      return new AS.BooleanV(allEqual(_argv.map((x) => x.str)))
     } else if (isType(_argv, [AS.BooleanV])) {
       return new AS.BooleanV(allEqual(_argv.map(extractValue)))
     } else if (isType(_argv, [AS.NilV])) {

@@ -34,14 +34,16 @@ export default function (
       getLength(seq.value),
       1,
     ])
-    const _seq = seq.value.slice(start, end)
-    var cond = <T>(_: T, idx: number) => idx % step === 0
-    if (Array.isArray(_seq)) {
+    const cond = <T>(_: T, idx: number) => idx % step === 0
+    if (seq instanceof AS.ListV) {
+      const _seq = seq.value.slice(start, end)
       return new AS.ListV(_seq.filter(cond))
     }
-    if (typeof _seq === 'string') {
-      return new AS.StringV(_seq.split('').filter(cond).join(''))
+    if (seq instanceof AS.StringV) {
+      const _seq = seq.value.slice(start, end)
+      return new AS.StringV(_seq.filter(cond).join(''))
     }
+    const _seq = seq.value.slice(start, end)
     const filtered = new Uint8Array(_seq).filter(cond)
     const buf = new ArrayBuffer(filtered.byteLength)
     new Uint8Array(buf).set(filtered)

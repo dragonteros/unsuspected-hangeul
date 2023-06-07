@@ -1,7 +1,7 @@
 import * as AS from './abstractSyntax'
 import * as E from './error'
 import { encodeNumber } from './parse'
-import { checkArity, checkType, getLength, isLiteralExpr } from './utils'
+import { checkArity, checkType, isLiteralExpr } from './utils'
 
 import buildArithmetics from './builtins/arithmetics'
 import buildConstructors from './builtins/constructors'
@@ -79,18 +79,19 @@ export function strict(value: AS.Value): AS.StrictValue {
   return value
 }
 
-function _accessArray<T>(arr: T[], rel: number): T | undefined {
-  if (rel >= 0) return arr[rel]
-  else return arr[arr.length + rel]
+function _accessArray<T>(arr: T[], rel: number): T {
+  const idx = rel < 0 ? rel + arr.length : rel
+  if (idx < 0 || idx >= arr.length)
+    throw Error(`길이 ${arr.length}의 객체의 ${rel}번째 요소를 요청했습니다.`)
+  return arr[idx]
 }
-function _accessString(s: string, rel: number): string | undefined {
-  if (rel >= 0) return s[rel]
-  else return s[s.length + rel]
-}
-function _accessBuffer(buf: ArrayBuffer, rel: number): ArrayBuffer | undefined {
-  if (rel >= buf.byteLength) return undefined
-  if (rel < 0) rel += buf.byteLength
-  return buf.slice(rel, rel + 1)
+function _accessBuffer(buf: ArrayBuffer, rel: number): ArrayBuffer {
+  const idx = rel < 0 ? rel + buf.byteLength : rel
+  if (idx < 0 || idx >= buf.byteLength)
+    throw Error(
+      `길이 ${buf.byteLength}의 바이트열의 ${rel}번째 요소를 요청했습니다.`
+    )
+  return buf.slice(idx, idx + 1)
 }
 
 /** Evaluates the expression in given environment and returns a value */
@@ -199,27 +200,25 @@ export function procFunctional(
       )
     }
   } else {
-    const length = getLength(_fun.value)
     return function (metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
       checkArity(metadata, argv, 1)
       const arg = strict(argv[0])
       const [_arg] = checkType(metadata, [arg], [AS.IntegerV])
       const idx = Number(_arg.value)
-      const item =
-        _fun instanceof AS.BytesV
-          ? _accessBuffer(_fun.value, idx)
-          : _fun instanceof AS.StringV
-          ? _accessString(_fun.value, idx)
-          : _accessArray(_fun.value, idx)
-      if (item == null) {
-        throw new E.UnsuspectedHangeulOutOfRangeError(
-          metadata,
-          `길이 ${length}의 객체의 ${idx}번째 요소를 요청했습니다.`
-        )
+      try {
+        if (_fun instanceof AS.BytesV) {
+          return new AS.BytesV(_accessBuffer(_fun.value, idx))
+        }
+        if (_fun instanceof AS.StringV) {
+          return new AS.StringV(_accessArray(_fun.value, idx))
+        }
+        return _accessArray(_fun.value, idx)
+      } catch (error) {
+        if (error instanceof Error) {
+          throw new E.UnsuspectedHangeulOutOfRangeError(metadata, error.message)
+        }
+        throw error
       }
-      if (item instanceof ArrayBuffer) return new AS.BytesV(item)
-      if (typeof item === 'string') return new AS.StringV(item)
-      return item
     }
   }
 }

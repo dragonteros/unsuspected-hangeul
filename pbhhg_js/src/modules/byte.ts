@@ -108,30 +108,47 @@ class Codec extends AS.FunctionV {
   }
 
   unicodeCodec(metadata: AS.Metadata, argv: AS.Value[]) {
-    // TODO: proper UTF-32
     checkArity(metadata, argv, 1)
     const [arg] = checkType(metadata, argv.map(this.strict), [
       AS.StringV,
       AS.BytesV,
     ])
     if (arg instanceof AS.StringV) {
-      if (this.numBytes == 1) {
+      if (this.numBytes === 1) {
         const encoder = new TextEncoder()
-        return new AS.BytesV(encoder.encode(arg.value).buffer)
+        return new AS.BytesV(encoder.encode(arg.str).buffer)
       }
-      let encoded = arg.value
+
+      let arr: number[]
+      if (this.numBytes === 2) {
+        arr = arg.str.split('').map((c) => c.charCodeAt(0))
+      } else if (this.numBytes === 4) {
+        arr = arg.value
+          .map((c) => c.codePointAt(0))
+          .filter((x): x is number => x != null)
+      } else {
+        throw new E.UnsuspectedHangeulValueError(
+          metadata,
+          `UTF-${this.numBytes * 8} 형식은 존재하지 않습니다.`
+        )
+      }
+
       if (this.endianness === '') {
-        encoded = '\uFEFF' + encoded
+        arr.unshift(0xfeff)
       }
-      const arr = encoded.split('').map((c) => c.charCodeAt(0))
       const buf = new ArrayBuffer(arr.length * this.numBytes)
       _write(new DataView(buf), arr, this.numBytes, this.bigEndian)
       return new AS.BytesV(buf)
     } else {
       const buf = arg.value
-      var view = new DataView(buf)
-      var bigEndian = this.bigEndian || false
-      if (this.endianness === '' && this.numBytes > 1) {
+      if (this.numBytes === 1) {
+        const decoder = new TextDecoder()
+        return new AS.StringV(decoder.decode(new Uint8Array(buf)))
+      }
+
+      let view = new DataView(buf)
+      let bigEndian = this.bigEndian || false
+      if (this.endianness === '') {
         const getter = (
           this.numBytes > 2 ? view.getUint32 : view.getUint16
         ).bind(view)
@@ -142,11 +159,7 @@ class Codec extends AS.FunctionV {
         }
       }
       const arr = _read(view, this.numBytes, bigEndian)
-      var decoded = arr.map((c) => String.fromCharCode(c)).join('')
-      if (this.numBytes == 1) {
-        decoded = decodeURIComponent(escape(decoded))
-      }
-      return new AS.StringV(decoded)
+      return new AS.StringV(String.fromCodePoint(...arr))
     }
   }
 

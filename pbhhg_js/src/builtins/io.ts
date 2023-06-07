@@ -157,7 +157,7 @@ export default function (
     checkArity(metadata, argv, 1)
     const _argv = checkType(metadata, argv.map(strict), [AS.StringV])
     return new AS.IOV('ㅈㄹ', _argv, async function (doIO, ioUtils) {
-      ioUtils.print(_argv[0].value)
+      ioUtils.print(_argv[0].str)
       return new AS.NilV()
     })
   }
@@ -198,7 +198,7 @@ export default function (
       [strict(argv[0])],
       [AS.IntegerV, AS.StringV]
     )
-    const _path = path instanceof AS.IntegerV ? Number(path.value) : path.value
+    const _path = path instanceof AS.IntegerV ? Number(path.value) : path.str
 
     const [mode] = checkType(metadata, [strict(argv[1])], [AS.IntegerV])
     const modeStr = encodeNumber(mode.value)

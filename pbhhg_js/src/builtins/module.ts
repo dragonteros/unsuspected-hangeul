@@ -145,7 +145,7 @@ export default function (
     }
     checkArity(metadata, argv, 1)
     const [filepath] = checkType(metadata, [strict(argv[0])], [AS.StringV])
-    return loadFromPath(filepath.value, loadUtils)
+    return loadFromPath(filepath.str, loadUtils)
   }
 
   return {
