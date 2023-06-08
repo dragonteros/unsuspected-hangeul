@@ -9,18 +9,8 @@ import {
   checkType,
   extractValue,
   isType,
+  joinArrayBuffer,
 } from '../utils'
-
-function _joinArrayBuffer(bufs: ArrayBuffer[]) {
-  const size = bufs.map((a) => a.byteLength).reduce((a, b) => a + b, 0)
-  const newBuf = new ArrayBuffer(size)
-  const view = new Uint8Array(newBuf)
-  bufs.reduce(function (idx, buf) {
-    view.set(new Uint8Array(buf), idx)
-    return idx + buf.byteLength
-  }, 0)
-  return newBuf
-}
 
 export function wrapNumber(num: bigint | number | Complex) {
   if (typeof num === 'bigint') return new AS.IntegerV(num)
@@ -109,7 +99,7 @@ export default function (
     }
     if (isType(first, [AS.BytesV])) {
       const _argv = checkType(metadata, argv.map(strict), [AS.BytesV])
-      return new AS.BytesV(_joinArrayBuffer(_argv.map(extractValue)))
+      return new AS.BytesV(joinArrayBuffer(_argv.map(extractValue)))
     }
     if (isType(first, [AS.ListV])) {
       const _argv = checkType(metadata, argv.map(strict), [AS.ListV])

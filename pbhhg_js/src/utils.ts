@@ -17,6 +17,17 @@ export function getLength(arg: { length: number } | ArrayBuffer) {
   return 'length' in arg ? arg.length : arg.byteLength
 }
 
+export function joinArrayBuffer(bufs: ArrayBuffer[]) {
+  const size = bufs.map((a) => a.byteLength).reduce((a, b) => a + b, 0)
+  const newBuf = new ArrayBuffer(size)
+  const view = new Uint8Array(newBuf)
+  bufs.reduce(function (idx, buf) {
+    view.set(new Uint8Array(buf), idx)
+    return idx + buf.byteLength
+  }, 0)
+  return newBuf
+}
+
 export function recursiveMap(
   item: AS.Value,
   fn: (value: AS.Value) => AS.StrictValue
