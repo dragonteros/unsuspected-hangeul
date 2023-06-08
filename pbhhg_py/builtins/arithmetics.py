@@ -97,10 +97,10 @@ def build_tbl(
         argv = utils.check_type(metadata, argv, AS.Integer)
         base, exponent, modulo = [a.value for a in argv]
         try:
-            return utils.guessed_wrap(pow(base, exponent, modulo))
+            return utils.guessed_wrap(pow(base, exponent, abs(modulo)))
         except ValueError:
             raise error.UnsuspectedHangeulArithmeticError(
-                metadata, f"법 {modulo}에 대한 {base}의 역원이 없습니다."
+                metadata, f"법 {modulo}에 대한 {base}의 {exponent}제곱을 구할 수 없습니다."
             ) from None
 
     def _integer_division(

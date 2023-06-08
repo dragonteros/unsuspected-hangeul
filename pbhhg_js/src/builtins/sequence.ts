@@ -1,4 +1,5 @@
 import * as AS from '../abstractSyntax'
+import * as E from '../error'
 import {
   checkArity,
   checkType,
@@ -6,6 +7,25 @@ import {
   getLength,
   matchDefaults,
 } from '../utils'
+
+function* slice<T>(arr: T[], start: number, end: number, step: number) {
+  const startIdx = start < 0 ? start + arr.length : start
+  const endIdx = end < 0 ? end + arr.length : end
+
+  if (step > 0) {
+    const _startIdx = Math.max(0, startIdx)
+    const _endIdx = Math.min(endIdx, arr.length)
+    for (let i = _startIdx; i < _endIdx; i += step) {
+      yield arr[i]
+    }
+  } else {
+    const _startIdx = Math.min(startIdx, arr.length - 1)
+    const _endIdx = Math.max(-1, endIdx)
+    for (let i = _startIdx; i > _endIdx; i += step) {
+      yield arr[i]
+    }
+  }
+}
 
 export default function (
   procFunctional: AS.ProcFunctionalFn,
@@ -34,20 +54,24 @@ export default function (
       getLength(seq.value),
       1,
     ])
-    const cond = <T>(_: T, idx: number) => idx % step === 0
+    if (step === 0) {
+      throw new E.UnsuspectedHangeulValueError(
+        metadata,
+        '0은 ㅂㅈ 함수의 네 번째 인수로 적합하지 않습니다.'
+      )
+    }
+
     if (seq instanceof AS.ListV) {
-      const _seq = seq.value.slice(start, end)
-      return new AS.ListV(_seq.filter(cond))
+      const items = slice(seq.value, start, end, step)
+      return new AS.ListV(Array.from(items))
     }
     if (seq instanceof AS.StringV) {
-      const _seq = seq.value.slice(start, end)
-      return new AS.StringV(_seq.filter(cond).join(''))
+      const items = slice(seq.value, start, end, step)
+      return new AS.StringV(Array.from(items).join(''))
     }
-    const _seq = seq.value.slice(start, end)
-    const filtered = new Uint8Array(_seq).filter(cond)
-    const buf = new ArrayBuffer(filtered.byteLength)
-    new Uint8Array(buf).set(filtered)
-    return new AS.BytesV(buf)
+    const _seq = Array.from(new Uint8Array(seq.value))
+    const sliced = slice(_seq, start, end, step)
+    return new AS.BytesV(new Uint8Array(sliced).buffer)
   }
 
   function _map(metadata: AS.Metadata, argv: AS.Value[]) {

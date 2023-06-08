@@ -1592,3 +1592,10 @@ class TestSpecialNumbers(TestBase):
             '[(ㅂ ㅅ ㄴ ㅂㅎㄹ) (ㅂ ㅅ ㄴ ㅂㅎㄹ) ㅄㅎㄷ] [(ㅂ ㅅ ㄴ ㅂㅎㄹ) (ㅂ ㅅ ㅁ ㅂㅎㄹ ㄴㄱ ㄱㅎㄷ) ㅄㅎㄷ] ㄱㅎㄷ', 'nan+nani')
         _test(
             '[(ㅂ ㅅ ㄴ ㅂㅎㄹ) (ㅂ ㅅ ㄴ ㅂㅎㄹ) ㅄㅎㄷ] [(ㅂ ㅅ ㄴ ㅂㅎㄹ) (ㅂ ㅅ ㄴ ㅂㅎㄹ) ㅄㅎㄷ] ㄱㅎㄷ', 'nan+nani')
+
+
+    def test_special_value_exponentiate(self):
+        _test = self._assert_execute
+        _test('ㄴ (ㅂ ㅅ ㄴ ㅂㅎㄹ) ㅅㅎㄷ', '1.0')
+        _test('ㄴ (ㅂ ㅅ ㅁ ㅂㅎㄹ) ㅅㅎㄷ', '1.0')
+        _test('ㄴ (ㅂ ㅅ ㅁ ㅂㅎㄹ ㄴㄱ ㄱㅎㄷ) ㅅㅎㄷ', '1.0')

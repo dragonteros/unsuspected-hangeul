@@ -187,12 +187,14 @@ export function mul(a: JSNumber, b: JSNumber) {
 }
 export function div(a: number | bigint, b: number | bigint) {
   // integer division
+  if (Number(b) === 0) throw Error('0으로 나눌 수 없습니다.')
   if (typeof a === 'bigint' && typeof b === 'bigint') {
     return a / b
   }
   return Math.trunc(Number(a) / Number(b))
 }
 export function mod(a: number | bigint, b: number | bigint) {
+  if (Number(b) === 0) throw Error('0으로 나눌 수 없습니다.')
   if (typeof a === 'bigint' && typeof b === 'bigint') {
     return a % b
   }

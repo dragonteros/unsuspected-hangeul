@@ -32,11 +32,12 @@ function extendedGcd(a: bigint, b: bigint): [bigint, bigint, bigint] {
 
 function modularInverse(num: bigint, modulo: bigint) {
   const [g, inverse, _] = extendedGcd(num % modulo, modulo)
-  if (g === 1n) return inverse % modulo
+  if (g === 1n) return (inverse + modulo) % modulo
   throw Error(`법 ${modulo}에 대한 ${num}의 역원이 없습니다.`)
 }
 
 function modPow(base: bigint, exponent: bigint, modulo: bigint): bigint {
+  if (modulo === 0n) throw Error(`0을 법으로 할 수 없습니다.`)
   base = base % modulo
   let result = 1n
   if (exponent < 0n) {
@@ -134,7 +135,7 @@ export default function (
       return wrapNumber(pow(_argv[0].value, _argv[1].value))
     } catch (error) {
       if (error instanceof Error) {
-        throw new E.UnsuspectedHangeulArithmeticError(metadata, error.message)
+        throw new E.UnsuspectedHangeulDivisionError(metadata, error.message)
       }
       throw error
     }
@@ -146,8 +147,8 @@ export default function (
     try {
       return wrapNumber(div(_argv[0].value, _argv[1].value))
     } catch (error) {
-      if (error instanceof RangeError) {
-        throw new E.UnsuspectedHangeulArithmeticError(
+      if (error instanceof Error) {
+        throw new E.UnsuspectedHangeulDivisionError(
           metadata,
           '0의 역수를 구하려고 했습니다.'
         )
@@ -162,8 +163,8 @@ export default function (
     try {
       return wrapNumber(mod(_argv[0].value, _argv[1].value))
     } catch (error) {
-      if (error instanceof RangeError) {
-        throw new E.UnsuspectedHangeulArithmeticError(
+      if (error instanceof Error) {
+        throw new E.UnsuspectedHangeulDivisionError(
           metadata,
           '0의 역수를 구하려고 했습니다.'
         )
