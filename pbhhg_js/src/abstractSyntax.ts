@@ -55,7 +55,7 @@ export type IOUtils = {
 }
 export type File = {
   close(): void
-  read(numBytes: number): ArrayBuffer
+  read(numBytes: number): Promise<ArrayBuffer>
   write(bytes: ArrayBuffer): number
   seek(offset: number, whence: 'SEEK_SET' | 'SEEK_CUR'): number
   tell(): number

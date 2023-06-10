@@ -69,3 +69,21 @@ class TestIO(TestBase):
             "b'\\x30\\x30'",
             "test/test_builtins/testdata/test.txt",
         )
+
+    def test_file_tell(self):
+        _test = self._assert_execute
+        _test(
+            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㅈ ㄱㅇㄱㅎㄴ {ㄷ ㄱㅇㄴㅎㄴ (ㄱㅇㄴ ㄳㅎㄶ)ㄱㅀㄷㅎ}ㄱㅀㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "0",
+            "test/test_builtins/testdata/test.txt",
+        )
+        _test(
+            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㄴ ㄹ ㄱㅇㄱㅎㄷ (ㅈ ㄱㅇㄴㅎㄴㅎ)ㄱㄹㅎㄷ {ㄷ ㄱㅇㄴㅎㄴ (ㄱㅇㄴ ㄳㅎㄶ)ㄱㅀㄷㅎ}ㄱㅀㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "1",
+            "test/test_builtins/testdata/test.txt",
+        )
+        _test(
+            "ㄹㅎㄱ {ㄱㅇㄱ ㄹ ㄱㄴㅎㄷ (ㅈ ㄱㅇㄱㅎㄴ, ㄴ ㄹ ㄱㅇㄱㅎㄷ [ㄴㅇㄱ ㄱㅇㄴㅎ ㄱㄹㅎㄷㅎ]ㅎㄷ {ㄷ ㄱㅇㄴㅎㄴ (ㄱㅇㄴ ㄳㅎㄶ)ㄱㅀㄷㅎ}ㄱㅀㄷㅎ)ㄱㅀㄷㅎ}ㄱㅀㄷ",
+            "1",
+            "test/test_builtins/testdata/test.txt",
+        )

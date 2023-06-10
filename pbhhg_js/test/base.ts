@@ -1,15 +1,15 @@
 import assert from 'node:assert'
 import { StringDecoder } from 'node:string_decoder'
 
-import { loadUtils as noadLoadUtils } from '../cli'
-import { File, IOUtils, LoadUtils } from '../src/abstractSyntax'
+import { getLoadUtils } from '../cli'
+import { File, IOUtils } from '../src/abstractSyntax'
 import { main } from '../src/main'
 
 class DummyFile implements File {
   close(): void {
     throw 'NotImplemented'
   }
-  read(numBytes: number): ArrayBuffer {
+  read(numBytes: number): Promise<ArrayBuffer> {
     throw 'NotImplemented'
   }
   write(bytes: ArrayBuffer): number {
@@ -30,7 +30,7 @@ class BufferedReader extends DummyFile {
   constructor(private content: string = '') {
     super()
   }
-  read(numBytes: number): ArrayBuffer {
+  async read(numBytes: number): Promise<ArrayBuffer> {
     const encoder = new TextEncoder()
 
     const anchor = this.cursor
@@ -46,7 +46,7 @@ class BufferedReader extends DummyFile {
     const content = this.content.slice(anchor, this.cursor)
     return encoder.encode(content).buffer
   }
-  readLine(): string | undefined {
+  async readLine(): Promise<string | undefined> {
     if (this.cursor >= this.content.length) return
 
     let sepIdx = this.content.indexOf('\n', this.cursor)
@@ -77,23 +77,6 @@ class BufferedWriter extends DummyFile {
   }
 }
 
-function wrapLoadUtils(
-  stdin: BufferedReader,
-  stdout: BufferedWriter
-): LoadUtils {
-  return {
-    ...noadLoadUtils,
-    open(
-      path: string | number,
-      flags: 'a' | 'a+' | 'r' | 'r+' | 'w' | 'w+'
-    ): File {
-      if (path === 0 && flags === 'r') return stdin
-      if (path === 1 && flags === 'w') return stdout
-      return noadLoadUtils.open(path, flags)
-    },
-  }
-}
-
 export async function test(
   program: string,
   value: string,
@@ -104,10 +87,10 @@ export async function test(
   const stdout = new BufferedWriter()
 
   const ioUtils: IOUtils = {
-    input: () => Promise.resolve(stdin.readLine()),
+    input: () => stdin.readLine(),
     print: (s: string) => stdout.writeLine(s),
   }
-  const loadUtils = wrapLoadUtils(stdin, stdout)
+  const loadUtils = getLoadUtils(stdin, stdout)
   const result = await main('<test>', program, ioUtils, loadUtils, false)
   assert.deepStrictEqual(result, [value])
   if (output) {

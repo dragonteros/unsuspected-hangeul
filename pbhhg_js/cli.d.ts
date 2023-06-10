@@ -1,5 +1,4 @@
 /* IO & Load utilities for Node.js */
-import { IOUtils, LoadUtils } from './src/abstractSyntax'
+import { File, LoadUtils } from './src/abstractSyntax'
 
-export const ioUtils: IOUtils
-export const loadUtils: LoadUtils
+export function getLoadUtils(stdin: File, stdout: File): LoadUtils

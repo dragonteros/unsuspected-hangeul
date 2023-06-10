@@ -3,6 +3,7 @@ const { Buffer } = require('node:buffer')
 const fs = require('node:fs')
 const path = require('node:path')
 const readline = require('node:readline')
+const { StringDecoder } = require('node:string_decoder')
 
 const pbhhg = require('./dist/pbhhg')
 
@@ -32,8 +33,14 @@ class NodeFile {
   _read(numBytes) {
     if (numBytes < 0) return this._readAll()
     const buf = Buffer.alloc(numBytes)
-    const count = fs.readSync(this.fd, buf, 0, numBytes, this.cursor)
-    this.cursor += count
+    try {
+      if (this.cursor == null) throw null
+      const count = fs.readSync(this.fd, buf, 0, numBytes, this.cursor)
+      this.cursor += count
+    } catch (error) {
+      fs.readSync(this.fd, buf, 0, numBytes)
+      this.cursor = null
+    }
     return buf
   }
   read(numBytes) {
@@ -41,15 +48,27 @@ class NodeFile {
   }
   write(bytes) {
     const buf = Buffer.from(bytes)
-    const count = fs.writeSync(this.fd, buf, 0, buf.byteLength, this.cursor)
+    let count = 0
+    try {
+      if (this.cursor == null) throw null
+      count = fs.writeSync(this.fd, buf, 0, buf.byteLength, this.cursor)
+      this.cursor += count
+    } catch (error) {
+      count = fs.writeSync(this.fd, buf, 0, buf.byteLength)
+      this.cursor = null
+    }
     return count
   }
   seek(offset, whence) {
+    if (this.cursor == null)
+      throw Error('이 파일은 읽고 쓰는 위치를 움직일 수 없습니다.')
     if (whence === 'SEEK_SET') this.cursor = offset
     else if (whence === 'SEEK_CUR') this.cursor += offset
     return this.cursor
   }
   tell() {
+    if (this.cursor == null)
+      throw Error('이 파일은 읽고 쓰는 위치를 알 수 없습니다.')
     return this.cursor
   }
   truncate(size) {
@@ -58,47 +77,126 @@ class NodeFile {
   }
 }
 
-const nodeLoadUtils = {
-  open(path, flags) {
-    const fd = typeof path === 'number' ? path : fs.openSync(path, flags)
-    return new NodeFile(fd)
-  },
-  load(location) {
-    return fs.readFileSync(location, 'utf8')
-  },
-  isFile(location) {
-    return fs.statSync(location).isFile()
-  },
-  listdir: fs.readdirSync,
-  joinPath: path.join,
-  normalizePath: path.normalize,
+class DummyFile {
+  close() {
+    throw 'NotImplemented'
+  }
+  read(numBytes) {
+    throw 'NotImplemented'
+  }
+  write(bytes) {
+    throw 'NotImplemented'
+  }
+  seek(offset, whence) {
+    throw 'NotImplemented'
+  }
+  tell() {
+    throw 'NotImplemented'
+  }
+  truncate(size) {
+    throw 'NotImplemented'
+  }
+}
+class BufferedReader extends DummyFile {
+  constructor() {
+    super()
+    this.buffer = null
+    this.cursor = 0
+  }
+  async _fillBuffer() {
+    if (this.buffer != null) return
+    const response = await process.stdin.iterator().next()
+    if (response.done) return
+    this.buffer = response.value
+    this.cursor = 0
+  }
+  async read(numBytes) {
+    const buffers = []
+    while (numBytes > 0) {
+      await this._fillBuffer()
+      if (this.buffer == null) break
+      const bytesToRead = Math.min(numBytes, this.buffer.length - this.cursor)
+      buffers.push(this.buffer.slice(this.cursor, this.cursor + bytesToRead))
+      numBytes -= bytesToRead
+    }
+    return Buffer.concat(buffers).buffer
+  }
+  async readLine() {
+    const decoder = new StringDecoder()
+    const strings = []
+    while (true) {
+      await this._fillBuffer()
+      if (this.buffer == null) break
+
+      const newlineIdx = this.buffer.indexOf('\n', this.cursor)
+      if (newlineIdx !== -1) {
+        strings.push(decoder.write(this.buffer.slice(this.cursor, newlineIdx)))
+        this.cursor = newlineIdx + 1
+        break
+      }
+
+      strings.push(decoder.write(this.buffer.slice(this.cursor)))
+      this.buffer = null
+    }
+
+    strings.push(decoder.end())
+    let result = strings.join('')
+    if (this.buffer == null && result === '') return undefined // EOF
+    if (result.endsWith('\r')) result = result.slice(0, -1)
+    return result
+  }
+}
+class BufferedWriter extends DummyFile {
+  write(bytes) {
+    process.stdout.write(Buffer.from(bytes))
+    return bytes.byteLength
+  }
+  writeLine(line) {
+    process.stdout.write(line + '\n')
+  }
 }
 
-function interactiveSession() {
-  console.log('[평범한 한글 해석기. 종료하려면 Ctrl-D를 누르세요.]')
-
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-    prompt: '> ',
-  })
-
-  const nodeIOUtils = {
-    input: () => {
-      return new Promise((resolve, reject) => {
-        rl.question('', resolve)
-      })
+function getLoadUtils(stdin, stdout) {
+  return {
+    open(path, flags) {
+      if (path === 0 && flags === 'r') return stdin
+      if (path === 1 && flags === 'w') return stdout
+      const fd = typeof path === 'number' ? path : fs.openSync(path, flags)
+      return new NodeFile(fd)
     },
-    print: console.log,
+    load(location) {
+      return fs.readFileSync(location, 'utf8')
+    },
+    isFile(location) {
+      return fs.statSync(location).isFile()
+    },
+    listdir: fs.readdirSync,
+    joinPath: path.join,
+    normalizePath: path.normalize,
   }
+}
 
-  rl.prompt()
-  rl.on('line', async (program) => {
+async function interactiveSession() {
+  console.log('[평범한 한글 해석기. 종료하려면 Ctrl-C를 누르세요.]')
+
+  const stdin = new BufferedReader()
+  const stdout = new BufferedWriter()
+  const ioUtils = {
+    input: () => stdin.readLine(),
+    print: (s) => stdout.writeLine(s),
+  }
+  const loadUtils = getLoadUtils(stdin, stdout)
+
+  while (true) {
+    process.stdout.write('> ')
+    const program = await stdin.readLine()
+    if (program == null) return
+
     const result = await pbhhg.main(
       '<command-line>',
       program,
-      nodeIOUtils,
-      nodeLoadUtils
+      ioUtils,
+      loadUtils
     )
     if (result.length > 1) {
       console.warn(
@@ -106,32 +204,19 @@ function interactiveSession() {
       )
     }
     console.log(result.join(' '))
-    rl.prompt()
-  })
+  }
 }
 
 async function run(filename, program, argv) {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  })
-
-  const nodeIOUtils = {
-    input: () => {
-      return new Promise((resolve, reject) => {
-        rl.question('', resolve)
-      })
-    },
-    print: console.log,
+  const stdin = new BufferedReader()
+  const stdout = new BufferedWriter()
+  const ioUtils = {
+    input: () => stdin.readLine(),
+    print: (s) => stdout.writeLine(s),
   }
+  const loadUtils = getLoadUtils(stdin, stdout)
 
-  const exitCode = await pbhhg.run(
-    filename,
-    program,
-    argv,
-    nodeIOUtils,
-    nodeLoadUtils
-  )
+  const exitCode = await pbhhg.run(filename, program, argv, ioUtils, loadUtils)
   process.exit(exitCode)
 }
 
@@ -182,5 +267,5 @@ if (require.main === module) {
 }
 
 module.exports = {
-  loadUtils: nodeLoadUtils,
+  getLoadUtils,
 }

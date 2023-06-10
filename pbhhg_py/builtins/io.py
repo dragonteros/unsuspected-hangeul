@@ -56,8 +56,15 @@ class File(AS.Function):
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
     ) -> EvalIOContext:
         utils.check_arity(metadata, argv, 1)
-        self._file.close()
-        return (yield from _return(metadata, [AS.Nil()]))
+        
+        def _fn(do_IO: DoIO) -> AS.EvalContext:
+            del do_IO  # Unused
+            self._file.close()
+            return AS.Nil()
+            yield
+            
+        return AS.IO("File::_close", (self,), _fn)
+        yield
 
     def _read(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
@@ -66,8 +73,14 @@ class File(AS.Function):
         [count] = yield from utils.match_arguments(
             metadata, [argv[0]], AS.Integer
         )
-        content = self._file.read(count.value)  # -1 for all
-        return (yield from _return(metadata, [AS.Bytes(content)]))
+        
+        def _fn(do_IO: DoIO) -> AS.EvalContext:
+            del do_IO  # Unused
+            content = self._file.read(count.value)  # -1 for all
+            return AS.Bytes(content)
+            yield
+            
+        return AS.IO("File::_read", (self, count), _fn)
 
     def _write(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
@@ -76,46 +89,71 @@ class File(AS.Function):
         [content] = yield from utils.match_arguments(
             metadata, [argv[0]], AS.Bytes
         )
-        count = self._file.write(content.value)
-        return (yield from _return(metadata, [AS.Integer(count)]))
+        
+        def _fn(do_IO: DoIO) -> AS.EvalContext:
+            del do_IO  # Unused
+            count = self._file.write(content.value)
+            return AS.Integer(count)
+            yield
+
+        return AS.IO("File::_write", (self, content), _fn)
 
     def _seek_or_tell(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
     ) -> EvalIOContext:
         utils.check_max_arity(metadata, argv, 3)
         if len(argv) == 1:
-            pos = self._file.tell()
-        else:
-            [offset] = yield from utils.match_arguments(
-                metadata, [argv[-2]], AS.Integer
+            def _fn(do_IO: DoIO) -> AS.EvalContext:
+                del do_IO  # Unused
+                pos = self._file.tell()
+                return AS.Integer(pos)
+                yield
+
+            return AS.IO("File::_seek_or_tell", (self, ), _fn)
+        
+        argv = yield from utils.map_strict(argv)
+        [offset] = yield from utils.match_arguments(
+            metadata, [argv[-2]], AS.Integer
+        )
+        whence = io.SEEK_SET
+        if len(argv) > 2:
+            [_whence] = yield from utils.match_arguments(
+                metadata, [argv[-3]], AS.Integer
             )
-            whence = io.SEEK_SET
-            if len(argv) > 2:
-                [_whence] = yield from utils.match_arguments(
-                    metadata, [argv[-3]], AS.Integer
-                )
-                try:
-                    whence = {
-                        "ㅅㅈㅂㄷ": io.SEEK_SET,  # 시작부터
-                        "ㅈㄱㅂㄷ": io.SEEK_CUR,  # 지금부터
-                    }[parse.encode_number(_whence.value)]
-                except KeyError:
-                    raise error.UnsuspectedHangeulValueError(
-                        metadata,
-                        f"파일 객체의 ㅈ 명령에 주는 위치 인수로 {_whence.value}은 "
-                        "적절하지 않습니다.",
-                    ) from None
+            try:
+                whence = {
+                    "ㅅㅈㅂㄷ": io.SEEK_SET,  # 시작부터
+                    "ㅈㄱㅂㄷ": io.SEEK_CUR,  # 지금부터
+                }[parse.encode_number(_whence.value)]
+            except KeyError:
+                raise error.UnsuspectedHangeulValueError(
+                    metadata,
+                    f"파일 객체의 ㅈ 명령에 주는 위치 인수로 {_whence.value}은 "
+                    "적절하지 않습니다.",
+                ) from None
+
+        def _fn(do_IO: DoIO) -> AS.EvalContext:
+            del do_IO  # Unused
             pos = self._file.seek(offset.value, whence)
-        return (yield from _return(metadata, [AS.Integer(pos)]))
+            return AS.Integer(pos)
+            yield
+
+        return AS.IO("File::_seek_or_tell", (self, *argv[:-1]), _fn)
 
     def _truncate(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
     ) -> EvalIOContext:
-        argv = yield from utils.match_arguments(
+        _argv = yield from utils.match_arguments(
             metadata, argv, AS.Integer, max_arity=2
         )
-        new_size = self._file.truncate(*[arg.value for arg in argv[:-1]])
-        return (yield from _return(metadata, [AS.Integer(new_size)]))
+
+        def _fn(do_IO: DoIO) -> AS.EvalContext:
+            del do_IO  # Unused
+            new_size = self._file.truncate(*[arg.value for arg in _argv[:-1]])
+            return AS.Integer(new_size)
+            yield
+
+        return AS.IO("File::_truncate", (self, *_argv[:-1]), _fn)
 
 
 def _input(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:

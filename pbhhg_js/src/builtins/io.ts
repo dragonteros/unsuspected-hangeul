@@ -41,64 +41,75 @@ class FileV extends AS.FunctionV {
   }
   private close(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
     checkArity(metadata, argv, 1)
-    try {
-      this.file.close()
-      const nil = new AS.NilV()
-      return new AS.IOV('ㄱㅅ', [nil], async (doIO, ioUtils) => nil)
-    } catch (error) {
-      throw new E.UnsuspectedHangeulOSError(
-        metadata,
-        `파일 닫기에 실패하였습니다: ${error}`
-      )
-    }
+    return new AS.IOV('FileV::close', [this], async (doIO, ioUtils) => {
+      try {
+        this.file.close()
+        return new AS.NilV()
+      } catch (error) {
+        throw new E.UnsuspectedHangeulOSError(
+          metadata,
+          `파일 닫기에 실패하였습니다: ${error}`
+        )
+      }
+    })
   }
   private read(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
     checkArity(metadata, argv, 2)
     const [count] = checkType(metadata, [this.strict(argv[0])], [AS.IntegerV])
-    try {
-      const content = new AS.BytesV(this.file.read(Number(count.value)))
-      return new AS.IOV('ㄱㅅ', [content], async (doIO, ioUtils) => content)
-    } catch (error) {
-      throw new E.UnsuspectedHangeulOSError(
-        metadata,
-        `파일 읽기에 실패하였습니다: ${error}`
-      )
-    }
+    return new AS.IOV('FileV::read', [this, count], async (doIO, ioUtils) => {
+      try {
+        const content = await this.file.read(Number(count.value))
+        return new AS.BytesV(content)
+      } catch (error) {
+        throw new E.UnsuspectedHangeulOSError(
+          metadata,
+          `파일 읽기에 실패하였습니다: ${error}`
+        )
+      }
+    })
   }
   private write(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
     checkArity(metadata, argv, 2)
     const [content] = checkType(metadata, [this.strict(argv[0])], [AS.BytesV])
-    try {
-      const count = new AS.IntegerV(BigInt(this.file.write(content.value)))
-      return new AS.IOV('ㄱㅅ', [count], async (doIO, ioUtils) => count)
-    } catch (error) {
-      throw new E.UnsuspectedHangeulOSError(
-        metadata,
-        `파일 쓰기에 실패하였습니다: ${error}`
-      )
-    }
+    return new AS.IOV(
+      'FileV::write',
+      [this, content],
+      async (doIO, ioUtils) => {
+        try {
+          const count = this.file.write(content.value)
+          return new AS.IntegerV(BigInt(count))
+        } catch (error) {
+          throw new E.UnsuspectedHangeulOSError(
+            metadata,
+            `파일 쓰기에 실패하였습니다: ${error}`
+          )
+        }
+      }
+    )
   }
   private seekOrTell(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
     checkMaxArity(metadata, argv, 3)
+    const _argv = argv.map(this.strict)
     if (argv.length === 1) {
-      try {
-        const pos = new AS.IntegerV(BigInt(this.file.tell()))
-        return new AS.IOV('ㄱㅅ', [pos], async (doIO, ioUtils) => pos)
-      } catch (error) {
-        throw new E.UnsuspectedHangeulOSError(
-          metadata,
-          `파일의 어디를 읽고 있는지 알아내는 데 실패하였습니다: ${error}`
-        )
-      }
+      return new AS.IOV('FileV::seekOrTell', [this], async (doIO, ioUtils) => {
+        try {
+          return new AS.IntegerV(BigInt(this.file.tell()))
+        } catch (error) {
+          throw new E.UnsuspectedHangeulOSError(
+            metadata,
+            `파일의 어디를 읽고 있는지 알아내는 데 실패하였습니다: ${error}`
+          )
+        }
+      })
     }
 
     let whence: 'SEEK_SET' | 'SEEK_CUR' = 'SEEK_SET'
     let offset: AS.IntegerV
     if (argv.length === 2) {
-      ;[offset] = checkType(metadata, [this.strict(argv[0])], [AS.IntegerV])
+      ;[offset] = checkType(metadata, [_argv[0]], [AS.IntegerV])
     } else {
-      ;[offset] = checkType(metadata, [this.strict(argv[1])], [AS.IntegerV])
-      let [_whence] = checkType(metadata, [this.strict(argv[0])], [AS.IntegerV])
+      ;[offset] = checkType(metadata, [_argv[1]], [AS.IntegerV])
+      let [_whence] = checkType(metadata, [_argv[0]], [AS.IntegerV])
       switch (encodeNumber(_whence.value)) {
         case 'ㅅㅈㅂㄷ':
           whence = 'SEEK_SET'
@@ -113,31 +124,41 @@ class FileV extends AS.FunctionV {
           )
       }
     }
-    try {
-      const pos = new AS.IntegerV(
-        BigInt(this.file.seek(Number(offset.value), whence))
-      )
-      return new AS.IOV('ㄱㅅ', [pos], async (doIO, ioUtils) => pos)
-    } catch (error) {
-      throw new E.UnsuspectedHangeulOSError(
-        metadata,
-        `파일의 읽는 위치를 수정하는 데 실패하였습니다: ${error}`
-      )
-    }
+    return new AS.IOV(
+      'FileV::seekOrTell',
+      [this, ..._argv.slice(0, -1)],
+      async (doIO, ioUtils) => {
+        try {
+          const pos = this.file.seek(Number(offset.value), whence)
+          return new AS.IntegerV(BigInt(pos))
+        } catch (error) {
+          throw new E.UnsuspectedHangeulOSError(
+            metadata,
+            `파일의 읽는 위치를 수정하는 데 실패하였습니다: ${error}`
+          )
+        }
+      }
+    )
   }
   private truncate(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
     checkMaxArity(metadata, argv, 2)
     const _argv = checkType(metadata, argv.map(this.strict), [AS.IntegerV])
     const size = _argv.length > 1 ? Number(_argv[0].value) : undefined
-    try {
-      const newSize = new AS.IntegerV(BigInt(this.file.truncate(size)))
-      return new AS.IOV('ㄱㅅ', [newSize], async (doIO, ioUtils) => newSize)
-    } catch (error) {
-      throw new E.UnsuspectedHangeulOSError(
-        metadata,
-        `파일 크기를 재조정하는 데 실패하였습니다: ${error}`
-      )
-    }
+    return new AS.IOV(
+      'FileV::truncate',
+      [this, ..._argv.slice(0, -1)],
+      async (doIO, ioUtils) => {
+        try {
+          const newSize = this.file.truncate(size)
+          return new AS.IntegerV(BigInt(newSize))
+        } catch (error) {
+          throw new E.UnsuspectedHangeulOSError(
+            metadata,
+            `파일 크기를 재조정하는 데 실패하였습니다: ${error}`
+          )
+        }
+      }
+    )
   }
 }
 
