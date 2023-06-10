@@ -2,7 +2,6 @@
 const { Buffer } = require('node:buffer')
 const fs = require('node:fs')
 const path = require('node:path')
-const readline = require('node:readline')
 const { StringDecoder } = require('node:string_decoder')
 
 const pbhhg = require('./dist/pbhhg')
@@ -44,7 +43,7 @@ class NodeFile {
     return buf
   }
   read(numBytes) {
-    return this._read(numBytes).buffer
+    return new Uint8Array(this._read(numBytes)).buffer
   }
   write(bytes) {
     const buf = Buffer.from(bytes)
@@ -104,7 +103,8 @@ class BufferedReader extends DummyFile {
     this.cursor = 0
   }
   async _fillBuffer() {
-    if (this.buffer != null) return
+    if (this.buffer != null && this.cursor < this.buffer.length) return
+    this.buffer = null
     const response = await process.stdin.iterator().next()
     if (response.done) return
     this.buffer = response.value
@@ -118,8 +118,9 @@ class BufferedReader extends DummyFile {
       const bytesToRead = Math.min(numBytes, this.buffer.length - this.cursor)
       buffers.push(this.buffer.slice(this.cursor, this.cursor + bytesToRead))
       numBytes -= bytesToRead
+      this.cursor += bytesToRead
     }
-    return Buffer.concat(buffers).buffer
+    return new Uint8Array(Buffer.concat(buffers)).buffer
   }
   async readLine() {
     const decoder = new StringDecoder()
