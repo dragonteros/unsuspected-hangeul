@@ -621,8 +621,7 @@ def aheui(filepath: str) -> IO[int]:
                             더ㅎㄹ
                             ㄱㅇㄷ ㅁㅂㅎㄴㅎㄴ
                         ㄱ ㄱㅇㄱㅎㄴ 듷듷긓(18) ㄴㅎㄷㅎㄷ
-                    ㄱㅇㄱ 빈값ㅎㄱ ㄴㅎㄷ
-                                            uwuㅎㄷ
+                    ㄱㅇㄱ 빈값ㅎㄱ ㄴㅎㄷㅎㄷ
                 ㅎㅎㄴ
 
                 def on_resolve(

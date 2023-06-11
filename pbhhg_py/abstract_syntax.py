@@ -19,12 +19,9 @@ class Metadata(NamedTuple):
     line: str  # whole line
 
     def __str__(self) -> str:
-        return (
-            self.line
-            + "\n"
-            + " " * _get_width(self.line[: self.start_col])
-            + "^" * _get_width(self.line[self.start_col : self.end_col])
-        )
+        return (self.line + "\n" +
+                " " * _get_width(self.line[:self.start_col]) +
+                "^" * _get_width(self.line[self.start_col:self.end_col]))
 
 
 # AST
@@ -66,6 +63,7 @@ class Env(NamedTuple):
 
 # Exception
 class UnsuspectedHangeulError(Exception):
+
     def __init__(
         self,
         err: ErrorValue,
@@ -75,8 +73,7 @@ class UnsuspectedHangeulError(Exception):
             message += (
                 f"{metadata.filename} {metadata.line_no+1}번줄 "
                 f"{metadata.start_col + 1}~{metadata.end_col+1}번째 글자:\n"
-                f"{str(metadata)}\n"
-            )
+                f"{str(metadata)}\n")
         super().__init__(f"{message}\n{err.message}")
         self.err = err  # Exposed to user code
 
@@ -85,37 +82,76 @@ class UnsuspectedHangeulError(Exception):
 class Integer(NamedTuple):
     value: int
 
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        return hash(self)
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, str]:
+        return str(self.value)
+
 
 class Float(NamedTuple):
     value: float
+
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        return hash(self)
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, str]:
+        return str(self.value)
 
 
 class Boolean(NamedTuple):
     value: bool
 
-    def __hash__(self) -> int:
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
         return hash(("평범한 한글/참거짓", self.value))
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, str]:
+        return "참" if self.value else "거짓"
+        yield
 
 
 class List(NamedTuple):
     value: tuple[Value, ...]
 
-    def __hash__(self) -> int:
-        return hash(("평범한 한글/목록", self.value))
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        keys = []
+        for item in self.value:
+            keys.append((yield from item.asKey()))
+        return hash(("평범한 한글/목록", tuple(keys)))
+
+    def format(self) -> typing.Generator[Value, StrictValue, str]:
+        formatted = []
+        for item in self.value:
+            formatted.append((yield from item.format()))
+        return "[" + ", ".join(formatted) + "]"
 
 
 class String(NamedTuple):
     value: str
 
-    def __hash__(self) -> int:
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
         return hash(("평범한 한글/문자열", self.value))
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, int]:
+        return f"'{self.value}'"
+        yield
 
 
 class Bytes(NamedTuple):
     value: bytes
 
-    def __hash__(self) -> int:
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
         return hash(("평범한 한글/바이트열", self.value))
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, int]:
+        arg = "".join(r"\x{:02X}".format(b) for b in self.value)
+        return "b'{}'".format(arg)
+        yield
 
 
 class ErrorValue(NamedTuple):
@@ -123,15 +159,29 @@ class ErrorValue(NamedTuple):
     message: str
     value: tuple[StrictValue, ...]
 
-    def __eq__(self, other: typing.Self) -> bool:
-        return hash(self) == hash(other)
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        keys = []
+        for item in self.value:
+            keys.append((yield from item.asKey()))
+        return hash(("평범한 한글/예외", tuple(keys)))
+        yield
 
-    def __hash__(self) -> int:
-        return hash(("평범한 한글/예외", self.value))
+    def format(self) -> typing.Generator[Value, StrictValue, str]:
+        formatted = []
+        for item in self.value:
+            formatted.append((yield from item.format()))
+        return "예외(" + ", ".join(formatted) + ")"
 
 
 class Nil(NamedTuple):
-    pass
+
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        return hash(("평범한 한글/빈값", None))
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, int]:
+        return "빈값"
+        yield
 
 
 def _to_int_if_possible(num: float) -> int | float:
@@ -151,15 +201,39 @@ class Complex(NamedTuple):
         im_str = "" if abs(im) == 1 else str(abs(im))
         return "{}{}{}i".format(re_str if re else "", minus_str, im_str)
 
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        return hash(self)
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, int]:
+        return str(self)
+        yield
+
 
 class Dict(NamedTuple):
     value: typing.Mapping[StrictValue, Value]
 
-    def __hash__(self):
-        return hash(("평범한 한글/사전", tuple(self.value.items())))
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        keys = []
+        for key, value in self.value.items():
+            k = yield from key.asKey()
+            v = yield from value.asKey()
+            keys.append((k, v))
+        return hash(("평범한 한글/사전", tuple(keys)))
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, int]:
+        formatted = []
+        for key, value in self.value.items():
+            k = yield from key.format()
+            v = yield from value.format()
+            formatted.append((k, v))
+        formatted.sort(key=lambda pair: pair[0])
+        return "{" + ", ".join(f"{k}: {v}" for k, v in formatted) + "}"
 
 
 class IO:
+
     def __init__(
         self,
         inst: str,
@@ -174,46 +248,57 @@ class IO:
             EvalContext,
         ],
     ):
-        self._hash = hash(("평범한 한글/드나듦", inst, tuple(argv)))
+        self._inst = inst
+        self._argv = argv
         self.continuation = continuation
 
-    def __hash__(self) -> int:
-        return self._hash
-
-    def __eq__(self, other: object) -> bool:
-        return hash(self) == hash(other)
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        keys = [self._inst]
+        for item in self._argv:
+            keys.append((yield from item.asKey()))
+        return hash(("평범한 한글/드나듦", tuple(keys)))
 
 
 class BuiltinFunction(NamedTuple):  # Is not a value
     literal: Literal
 
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        return hash(("평범한 한글/기본제공함수", self.literal.value))
+        yield
+
+    def format(self) -> typing.Generator[Value, StrictValue, int]:
+        return f"<기본제공함수 {self.literal.value}>"
+        yield
+
 
 class Function(abc.ABC):
+
     def __init__(self, adj: str = ""):
-        self._str = "<{}Function>".format(adj)
+        self._str = "<{} 함수>".format(adj)
 
-    def __hash__(self):
-        return id(self)
+    def asKey(self) -> typing.Generator[Value, StrictValue, int]:
+        return hash(("평범한 한글/함수", id(self)))
+        yield
 
-    def __str__(self):
+    def format(self):
         return self._str
+        yield
 
     @abc.abstractmethod
-    def __call__(
-        self, metadata: Metadata, argv: typing.Sequence[Value]
-    ) -> EvalContext:
+    def __call__(self, metadata: Metadata,
+                 argv: typing.Sequence[Value]) -> EvalContext:
         raise NotImplementedError
 
 
 class Closure(Function):
+
     def __init__(self, body: AST, env: Env):
         self.body = body
         self.env = env
-        self._str = "<Closure created at depth {}>".format(len(env.args))
+        self._str = "<깊이 {}에서 만든 함수}>".format(len(env.args))
 
-    def __call__(
-        self, metadata: Metadata, argv: typing.Sequence[Value]
-    ) -> EvalContext:
+    def __call__(self, metadata: Metadata,
+                 argv: typing.Sequence[Value]) -> EvalContext:
         del metadata  # Unused
         canned_funs, canned_args = self.env
         new_env = Env(canned_funs, canned_args + [tuple(argv)])
@@ -223,6 +308,7 @@ class Closure(Function):
 
 # Intermediate value
 class CacheBox:
+
     def __init__(self):
         self._value: StrictValue | UnsuspectedHangeulError | None = None
         self.requestor: CacheBox | None = None
@@ -245,9 +331,6 @@ class Expr:
         self.env = env
         self.cache_box = CacheBox()
 
-    def __hash__(self):
-        return hash((self.expr, id(self.env)))
-
 
 # Collection
 Real = Integer | Float
@@ -258,7 +341,6 @@ Callable = Function | Boolean | Sequence | Dict | Complex | ErrorValue
 NonIOStrictValue = Number | Callable | Nil
 StrictValue = NonIOStrictValue | IO
 Value = StrictValue | Expr
-
 
 EvalContext = typing.Generator[
     Value,

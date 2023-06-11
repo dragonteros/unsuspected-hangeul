@@ -207,6 +207,20 @@ def _return(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
     return AS.IO("ㄱㅅ", tuple(argv), _fn)
 
 
+def _throw(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
+    utils.check_arity(metadata, argv, 1)
+    # NOTE(dragonteros): recursive strict due to hashing inside IO.__init__()
+    argv = yield from utils.map_strict_with_hook(argv, utils.recursive_strict)
+    argv = utils.check_type(metadata, argv, AS.ErrorValue)
+
+    def _fn(do_IO: DoIO) -> AS.EvalContext:
+        del do_IO  # Unused
+        raise AS.UnsuspectedHangeulError(argv[0])
+        yield
+
+    return AS.IO("ㄷㅈ", tuple(argv), _fn)
+
+
 def _file(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
     utils.check_arity(metadata, argv, 2)
     argv = yield from utils.map_strict(argv)
@@ -285,4 +299,5 @@ def build_tbl(
         "ㄱㅅ": _return,  # 감싸다
         "ㄱㄹ": _bind,  # ~기로 하다
         "ㄱㄴ": _file,  # 꺼내다
+        "ㄷㅈ": _throw,  # 던지다
     }

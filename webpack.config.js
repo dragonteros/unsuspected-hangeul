@@ -18,5 +18,5 @@ module.exports = {
     filename: 'pbhhg.js',
     path: path.resolve(__dirname, 'pbhhg_js/dist'),
   },
-  mode: 'production',
+  mode: 'development',
 }

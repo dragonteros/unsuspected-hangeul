@@ -71,8 +71,8 @@ def formatter(
         return str(value)
     if isinstance(value, AS.ErrorValue):
         arg = yield from utils.map_strict_with_hook(value.value, _formatter)
-        return f"<예외: [{(', '.join(arg))}]>"
-    return "Nil"
+        return f"예외({(', '.join(arg))})"
+    return "빈값"
 
 
 def main(filename: str, program: str, format_io: bool = True) -> list[str]:

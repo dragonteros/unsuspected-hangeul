@@ -184,8 +184,9 @@ export default function (
   }
   function _return(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, 1)
-    return new AS.IOV('ㄱㅅ', argv, async function (doIO, ioUtils) {
-      return strict(argv[0])
+    const _argv = argv.map(strict)
+    return new AS.IOV('ㄱㅅ', _argv, async function (doIO, ioUtils) {
+      return _argv[0]
     })
   }
   function _bind(metadata: AS.Metadata, argv: AS.Value[]) {

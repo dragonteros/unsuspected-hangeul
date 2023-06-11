@@ -155,7 +155,7 @@ export class BooleanV extends ValueBase {
     super()
   }
   format(strict: StrictFn) {
-    return this.value ? 'True' : 'False'
+    return this.value ? '참' : '거짓'
   }
 }
 
