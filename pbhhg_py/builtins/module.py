@@ -11,7 +11,7 @@ from pbhhg_py import utils
 class BuiltinModule(AS.Function):
     def __init__(self, module: AS.Evaluation, keys: list[str]):
         self.module = module
-        self._str = "<Builtin Module {}>".format(" ".join(keys))
+        self._str = f"<Builtin Module {' '.join(keys)}>"
 
     def __call__(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
@@ -19,18 +19,18 @@ class BuiltinModule(AS.Function):
         return (yield from self.module(metadata, argv))
 
 
-_BUITLIN_MODULE_REGISTRY: dict[AS.StrictValue, AS.Value] = {}
+_BUITLIN_MODULE_REGISTRY: dict[int, AS.Value] = {}
 _MODULE_REGISTRY: dict[str, AS.Value] = {}
 
 
 def _get_module_from_registry(filepath: str):
-    for regpath in _MODULE_REGISTRY:
+    for regpath, module in _MODULE_REGISTRY.items():
         if os.path.samefile(filepath, regpath):
-            return _MODULE_REGISTRY[regpath]
+            return module
     return None
 
 
-def _load_from_path(filepath: str):
+def _load_from_path(filepath: str) -> AS.Value:
     module = _get_module_from_registry(filepath)
     if module is not None:
         return module
@@ -50,7 +50,7 @@ def _load_from_path(filepath: str):
     return module
 
 
-def _load_from_literal(metadata: AS.Metadata, literals: list[int]):
+def _load_from_literal(metadata: AS.Metadata, literals: list[int]) -> AS.Value:
     """Loads a module at a path described by `literals`
 
     Args:
@@ -63,12 +63,13 @@ def _load_from_literal(metadata: AS.Metadata, literals: list[int]):
     errmsg = f"정수 리터럴열 {name}에 맞는 모듈을 찾지 못했습니다."
     # Search builtins
     if literals[0] == 5:
-        module = AS.Dict(_BUITLIN_MODULE_REGISTRY)
-        for idx in literals[1:]:
-            if not isinstance(module, AS.Dict):
+        module = _BUITLIN_MODULE_REGISTRY
+        for idx in literals[1:-1]:
+            directory = module[idx]
+            if not isinstance(directory, AS.Dict):
                 raise error.UnsuspectedHangeulNotFoundError(metadata, errmsg)
-            module = module.value[AS.Integer(idx)]
-        return module
+            module = directory.mapping
+        return module[literals[-1]]
 
     # Search files
     filepath = _search_file_from_literal(metadata, literals)
@@ -149,13 +150,12 @@ def _construct_builtin_modules(
 ) -> AS.Dict:
     """Recursively iterates over dict to convert python values
     to pbhhg values and wrap functions in BuiltinModule."""
-    value: dict[AS.StrictValue, AS.Value] = {
-        AS.Integer(parse.parse_number(k)): _construct_builtin_module(
-            v, keys + [k]
-        )
+    mapping = [
+        (parse.parse_number(k), _construct_builtin_module(v, keys + [k]))
         for k, v in data.items()
-    }
-    return AS.Dict(value)
+    ]
+    table = [(AS.Integer(k), hash(k), v) for k, v in mapping]
+    return AS.Dict(table)
 
 
 def build_tbl(
@@ -182,7 +182,7 @@ def build_tbl(
 
     for name in modules.__all__:
         module = _register_builtin_module(name)
-        _BUITLIN_MODULE_REGISTRY.update(module.value)
+        _BUITLIN_MODULE_REGISTRY.update(module.mapping)
 
     return {
         "ㅂ": _import,  # 불러오기

@@ -72,12 +72,10 @@ def recursive_strict(
         v = yield from map_strict_with_hook(v, recursive_strict)
         return AS.List(tuple(v))
     elif isinstance(item, AS.Dict):
-        if not item.value:
-            return AS.Dict({})
-        values = item.value.values()
+        values = [v for _, _, v in item.table]
         values = yield from map_strict_with_hook(values, recursive_strict)
-        d = dict(zip(item.value.keys(), values))
-        return AS.Dict(d)
+        mapping = [(k, h, v) for (k, h, _), v in zip(item.table, values)]
+        return AS.Dict(mapping)
     if isinstance(item, AS.ErrorValue):
         v = item.value
         v = yield from map_strict_with_hook(v, recursive_strict)
@@ -193,14 +191,13 @@ def match_defaults(
 def guessed_wrap(arg: Any) -> AS.StrictValue:
     """Wraps arg based on its type."""
     converter: dict[Any, Any] = {
+        bool: AS.Boolean,  # should come before int
         int: AS.Integer,
         float: AS.Float,
         complex: AS.Complex,
-        bool: AS.Boolean,
         tuple: AS.List,
         str: AS.String,
         bytes: AS.Bytes,
-        dict: AS.Dict,
     }
     for t, T in converter.items():
         if isinstance(arg, t):

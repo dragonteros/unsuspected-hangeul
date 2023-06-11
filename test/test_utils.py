@@ -49,4 +49,3 @@ class TestUtils(TestBase):
         self.assertEqual(guessed_wrap(()), List(()))
         self.assertEqual(guessed_wrap(""), String(""))
         self.assertEqual(guessed_wrap(b""), Bytes(b""))
-        self.assertEqual(guessed_wrap({}), Dict({}))

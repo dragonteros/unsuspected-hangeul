@@ -1,54 +1,21 @@
-from typing import Generator, Iterable, Mapping, Sequence
+from typing import Generator, Sequence
 
 from pbhhg_py import abstract_syntax as AS
 from pbhhg_py import utils
 
 
-def _listed_equals(
-    seqs: Iterable[Sequence[AS.Value]],
-) -> Generator[AS.Value, AS.StrictValue, bool]:
-    """Check equality for lists of pbhhg values."""
-    seqs = list(seqs)
-    if not utils.all_equal(len(seq) for seq in seqs):
-        return False
-    for tiers in zip(*seqs):
-        equality = yield from _value_equals(tiers)
-        if not equality.value:
-            return False
-    return True
-
-
-def _dict_equals(
-    dicts: Iterable[Mapping[AS.StrictValue, AS.Value]]
-) -> Generator[AS.Value, AS.StrictValue, bool]:
-    """Check equality for dicts of pbhhg values."""
-    dicts = list(dicts)
-    if not dicts:
-        return True
-    if not utils.all_equal(d.keys() for d in dicts):
-        return False
-    for k in dicts[0]:
-        equality = yield from _value_equals([d[k] for d in dicts])
-        if not equality.value:
-            return False
-    return True
-
-
 def _value_equals(
     argv: Sequence[AS.Value],
 ) -> Generator[AS.Value, AS.StrictValue, AS.Boolean]:
-    argv = yield from utils.map_strict(argv)
-    if utils.is_type(argv, AS.Number):
-        return AS.Boolean(utils.all_equal(argv))
-    if utils.is_type(argv, AS.List | AS.ErrorValue):
-        lists = [seq.value for seq in argv]
-        return AS.Boolean((yield from _listed_equals(lists)))
-    if utils.is_type(argv, AS.Dict):
-        dicts = [d.value for d in argv]
-        return AS.Boolean((yield from _dict_equals(dicts)))
-    if utils.is_type(argv, AS.IO):
-        return AS.Boolean(utils.all_equal(hash(a) for a in argv))
-    return AS.Boolean(utils.is_same_type(argv) and utils.all_equal(argv))
+    key = None
+    for arg in argv:
+        arg = yield arg
+        _key = yield from arg.as_key()
+        if key is None:
+            key = _key
+        elif key != _key:
+            return AS.Boolean(False)
+    return AS.Boolean(True)
 
 
 def build_tbl(

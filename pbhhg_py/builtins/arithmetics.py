@@ -75,7 +75,9 @@ def build_tbl(
             return AS.Bytes(b"".join(a.value for a in argv))
         if isinstance(first, AS.Dict):
             argv = utils.check_type(metadata, argv, AS.Dict)
-            return AS.Dict({k: a.value[k] for a in argv for k in a.value})
+            merged = {h: (k, v) for a in argv for k, h, v in a.table}
+            table = [(k, h, v) for h, (k, v) in merged.items()]
+            return AS.Dict(table)
         argv = utils.check_type(metadata, argv, AS.Number)
         return utils.guessed_wrap(sum(a.value for a in argv))
 

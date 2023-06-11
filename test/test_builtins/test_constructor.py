@@ -78,7 +78,7 @@ class TestConstructor(TestBase):
         _test = self._assert_execute
         _test(
             "목록ㅎㄱ 빈값ㅎㄱ ㄱ ㄱㅅㅎㄴ ㄴㅎ ㅁㄹ ㅎㅁ",
-            "[[], Nil, 0, <Closure created at depth 0>]",
+            "[[], Nil, 0, <깊이 0에서 생성된 함수>]",
         )
         _test(
             "ㄱ 복소ㅎㄴ ㄱ 거짓ㅎㄱ 문자ㅎㄱ 사전ㅎㄱ 뜻밖ㅎㄱ 목록 ㅎㅅ",

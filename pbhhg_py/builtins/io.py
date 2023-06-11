@@ -46,23 +46,23 @@ class File(AS.Function):
         except KeyError:
             raise error.UnsuspectedHangeulValueError(
                 metadata, f"{command_str}은 파일 객체가 인식하지 못하는 명령입니다."
-            )
-        except OSError as e:
+            ) from None
+        except OSError as err:
             raise error.UnsuspectedHangeulOSError(
-                metadata, f"운영체제 오류 errno={e.errno}", e.errno
-            )
+                metadata, f"운영체제 오류 errno={err.errno}", err.errno
+            ) from None
 
     def _close(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]
     ) -> EvalIOContext:
         utils.check_arity(metadata, argv, 1)
-        
+
         def _fn(do_IO: DoIO) -> AS.EvalContext:
             del do_IO  # Unused
             self._file.close()
             return AS.Nil()
             yield
-            
+
         return AS.IO("File::_close", (self,), _fn)
         yield
 
@@ -73,13 +73,13 @@ class File(AS.Function):
         [count] = yield from utils.match_arguments(
             metadata, [argv[0]], AS.Integer
         )
-        
+
         def _fn(do_IO: DoIO) -> AS.EvalContext:
             del do_IO  # Unused
             content = self._file.read(count.value)  # -1 for all
             return AS.Bytes(content)
             yield
-            
+
         return AS.IO("File::_read", (self, count), _fn)
 
     def _write(
@@ -89,7 +89,7 @@ class File(AS.Function):
         [content] = yield from utils.match_arguments(
             metadata, [argv[0]], AS.Bytes
         )
-        
+
         def _fn(do_IO: DoIO) -> AS.EvalContext:
             del do_IO  # Unused
             count = self._file.write(content.value)
@@ -103,14 +103,15 @@ class File(AS.Function):
     ) -> EvalIOContext:
         utils.check_max_arity(metadata, argv, 3)
         if len(argv) == 1:
+
             def _fn(do_IO: DoIO) -> AS.EvalContext:
                 del do_IO  # Unused
                 pos = self._file.tell()
                 return AS.Integer(pos)
                 yield
 
-            return AS.IO("File::_seek_or_tell", (self, ), _fn)
-        
+            return AS.IO("File::_seek_or_tell", (self,), _fn)
+
         argv = yield from utils.map_strict(argv)
         [offset] = yield from utils.match_arguments(
             metadata, [argv[-2]], AS.Integer
@@ -128,8 +129,7 @@ class File(AS.Function):
             except KeyError:
                 raise error.UnsuspectedHangeulValueError(
                     metadata,
-                    f"파일 객체의 ㅈ 명령에 주는 위치 인수로 {_whence.value}은 "
-                    "적절하지 않습니다.",
+                    f"파일 객체의 ㅈ 명령에 주는 위치 인수로 {_whence.value}은 " "적절하지 않습니다.",
                 ) from None
 
         def _fn(do_IO: DoIO) -> AS.EvalContext:
@@ -166,10 +166,10 @@ def _input(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
             return AS.String(input(""))
         except EOFError:
             return AS.Nil()
-        except OSError as e:
+        except OSError as err:
             raise error.UnsuspectedHangeulOSError(
-                metadata, f"운영체제 오류 errno={e.errno}", e.errno
-            )
+                metadata, f"운영체제 오류 errno={err.errno}", err.errno
+            ) from None
         yield
 
     return AS.IO("ㄹ", tuple(argv), _fn)
@@ -184,10 +184,10 @@ def _print(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
         del do_IO  # Unused
         try:
             print(content.value, flush=True)
-        except OSError as e:
+        except OSError as err:
             raise error.UnsuspectedHangeulOSError(
-                metadata, f"운영체제 오류 errno={e.errno}", e.errno
-            )
+                metadata, f"운영체제 오류 errno={err.errno}", err.errno
+            ) from None
         return AS.Nil()
         yield
 
@@ -196,7 +196,7 @@ def _print(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
 
 def _return(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
     utils.check_arity(metadata, argv, 1)
-    # NOTE(dragonteros): recursive strict due to hashing inside IO.__init__()
+    # NOTE(dragonteros): Evaluate everything before moving to IO phase
     argv = yield from utils.map_strict_with_hook(argv, utils.recursive_strict)
 
     def _fn(do_IO: DoIO) -> AS.EvalContext:
@@ -205,20 +205,6 @@ def _return(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
         yield
 
     return AS.IO("ㄱㅅ", tuple(argv), _fn)
-
-
-def _throw(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
-    utils.check_arity(metadata, argv, 1)
-    # NOTE(dragonteros): recursive strict due to hashing inside IO.__init__()
-    argv = yield from utils.map_strict_with_hook(argv, utils.recursive_strict)
-    argv = utils.check_type(metadata, argv, AS.ErrorValue)
-
-    def _fn(do_IO: DoIO) -> AS.EvalContext:
-        del do_IO  # Unused
-        raise AS.UnsuspectedHangeulError(argv[0])
-        yield
-
-    return AS.IO("ㄷㅈ", tuple(argv), _fn)
 
 
 def _file(metadata: AS.Metadata, argv: Sequence[AS.Value]) -> EvalIOContext:
@@ -291,7 +277,7 @@ def build_tbl(
             utils.check_type(metadata, [result], AS.IO)
             return result
 
-        return AS.IO("ㄱㄹ", (io_to_bind, resolve, reject), _fn)
+        return AS.IO("ㄱㄹ", tuple(argv), _fn)
 
     return {
         "ㄹ": _input,  # 입력
@@ -299,5 +285,4 @@ def build_tbl(
         "ㄱㅅ": _return,  # 감싸다
         "ㄱㄹ": _bind,  # ~기로 하다
         "ㄱㄴ": _file,  # 꺼내다
-        "ㄷㅈ": _throw,  # 던지다
     }

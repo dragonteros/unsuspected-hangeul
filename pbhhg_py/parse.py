@@ -4,7 +4,6 @@ import unicodedata
 
 from pbhhg_py import abstract_syntax as AS
 from pbhhg_py import error
-from pbhhg_py import utils
 
 # TABLES
 # note all ㅇ and ㅎ has a preceding space in following tables

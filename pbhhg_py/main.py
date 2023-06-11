@@ -38,41 +38,27 @@ def formatter(
         arg = yield from do_IO(value)
         arg = yield from formatter(arg)
         return _format.format(arg)
-
     _formatter = functools.partial(formatter, format_io=format_io)
-    if isinstance(value, AS.Real):
-        return str(value.value)
-    if isinstance(value, AS.Complex):
-        return str(value)
-    if isinstance(value, AS.Boolean):
-        return str(value.value)
-    if isinstance(value, AS.String):
-        return "'{}'".format(value.value)
-    if isinstance(value, AS.Bytes):
-        arg = "".join(r"\x{:02X}".format(b) for b in value.value)
-        return "b'{}'".format(arg)
+
     if isinstance(value, AS.List):
         arg = yield from utils.map_strict_with_hook(value.value, _formatter)
-        return "[{}]".format(", ".join(arg))
+        return f"[{', '.join(arg)}]"
+
     if isinstance(value, AS.Dict):
-        if not value.value:
-            return "{}"
-        keys = yield from utils.map_strict_with_hook(
-            value.value.keys(), _formatter
-        )
-        values = yield from utils.map_strict_with_hook(
-            value.value.values(), _formatter
-        )
-        d = list(zip(keys, values))
-        d = sorted(d, key=lambda pair: pair[0])
-        d = ", ".join("{}: {}".format(k, v) for k, v in d)
-        return "{" + d + "}"
-    if isinstance(value, AS.Function):
-        return str(value)
+        keys = [k for k, _, _ in value.table]
+        keys = yield from utils.map_strict_with_hook(keys, _formatter)
+        values = [v for _, _, v in value.table]
+        values = yield from utils.map_strict_with_hook(values, _formatter)
+        pairs = list(zip(keys, values))
+        pairs.sort(key=lambda pair: pair[0])
+        formatted = ", ".join(f"{k}: {v}" for k, v in pairs)
+        return "{" + formatted + "}"
+
     if isinstance(value, AS.ErrorValue):
         arg = yield from utils.map_strict_with_hook(value.value, _formatter)
-        return f"예외({(', '.join(arg))})"
-    return "빈값"
+        return f"<예외: [{(', '.join(arg))}]>"
+
+    return (yield from value.format())
 
 
 def main(filename: str, program: str, format_io: bool = True) -> list[str]:

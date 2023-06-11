@@ -50,7 +50,7 @@ class Codec(AS.Function):
             raise error.UnsuspectedHangeulValueError(
                 metadata,
                 f"요청된 변환을 수행하지 못했습니다. 변환기: {repr(self)}, 인수: {argv}",
-            )
+            ) from None
 
     def _get_codec(self):
         return {

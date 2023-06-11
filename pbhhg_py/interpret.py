@@ -188,7 +188,7 @@ def interpret(value: AS.Expr) -> AS.EvalContext:
         except IndexError:
             raise error.UnsuspectedHangeulOutOfRangeError(
                 expr.metadata, "함수 참조의 범위를 벗어났습니다."
-            )
+            ) from None
 
     elif isinstance(expr, AS.ArgRef):
         assert len(env.funs) == len(env.args)
@@ -198,7 +198,7 @@ def interpret(value: AS.Expr) -> AS.EvalContext:
         except IndexError:
             raise error.UnsuspectedHangeulOutOfRangeError(
                 metadata, "존재하지 않는 함수에 대한 인수 참조를 시도했습니다."
-            )
+            ) from None
 
         relA = yield AS.Expr(relA, env)
         [relA] = utils.check_type(metadata, [relA], AS.Integer)
@@ -269,9 +269,9 @@ def proc_functional(
             metadata: AS.Metadata, argv: Sequence[AS.Value]
         ) -> AS.EvalContext:
             utils.check_arity(metadata, argv, 1)
-            arg = yield from utils.recursive_strict(argv[0])
+            arg = yield from (yield argv[0]).as_key()
             try:
-                return fun.value[arg]
+                return fun.mapping[arg]
             except KeyError:
                 raise error.UnsuspectedHangeulNotFoundError(
                     metadata, f"사전에 다음 표제가 없습니다: {arg}"

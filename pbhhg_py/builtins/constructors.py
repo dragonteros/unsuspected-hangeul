@@ -31,7 +31,12 @@ def build_tbl(
         keys = yield from utils.map_strict_with_hook(
             keys, utils.recursive_strict
         )
-        return AS.Dict({k: v for k, v in zip(keys, values)})
+        hashes: list[int] = []
+        for key in keys:
+            k = yield from key.as_key()
+            hashes.append(k)
+        mapping = list(zip(keys, hashes, values))
+        return AS.Dict(mapping)
 
     def _list(
         metadata: AS.Metadata, argv: Sequence[AS.Value]
