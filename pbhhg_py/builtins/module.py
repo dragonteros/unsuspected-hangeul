@@ -11,7 +11,7 @@ from pbhhg_py import utils
 class BuiltinModule(AS.Function):
     def __init__(self, module: AS.Evaluation, keys: list[str]):
         self.module = module
-        self._str = f"<Builtin Module {' '.join(keys)}>"
+        self._str = f"<기본 제공 모듈 {' '.join(keys)}>"
 
     def __call__(
         self, metadata: AS.Metadata, argv: Sequence[AS.Value]

@@ -1,7 +1,13 @@
 import * as AS from '../abstractSyntax'
 import * as E from '../error'
 import { encodeNumber } from '../parse'
-import { checkArity, checkMaxArity, checkMinArity, checkType } from '../utils'
+import {
+  checkArity,
+  checkMaxArity,
+  checkMinArity,
+  checkType,
+  recursiveMap,
+} from '../utils'
 
 const MODE_TABLE = {
   ㄹ: 'r',
@@ -14,7 +20,7 @@ const MODE_TABLE = {
 
 class FileV extends AS.FunctionV {
   constructor(private file: AS.File, private strict: AS.StrictFn) {
-    super('File-accessing ')
+    super('파일 접근 ')
   }
   execute(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
     checkMinArity(metadata, argv, 1)
@@ -184,9 +190,9 @@ export default function (
   }
   function _return(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, 1)
-    const _argv = argv.map(strict)
-    return new AS.IOV('ㄱㅅ', _argv, async function (doIO, ioUtils) {
-      return _argv[0]
+    const arg = recursiveMap(argv[0], strict)
+    return new AS.IOV('ㄱㅅ', [arg], async function (doIO, ioUtils) {
+      return arg
     })
   }
   function _bind(metadata: AS.Metadata, argv: AS.Value[]) {

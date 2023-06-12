@@ -155,7 +155,7 @@ export class BooleanV extends ValueBase {
     super()
   }
   format(strict: StrictFn) {
-    return this.value ? '참' : '거짓'
+    return this.value ? 'True' : 'False'
   }
 }
 
@@ -285,7 +285,7 @@ export abstract class FunctionV extends ValueBase {
   constructor(adj = '') {
     super()
     this.id = FUNCTION_ID_GEN++
-    this.str = '<' + adj + 'Function>'
+    this.str = '<' + adj + '함수>'
   }
   format(strict: StrictFn) {
     return this.str
@@ -298,8 +298,7 @@ export abstract class FunctionV extends ValueBase {
 
 export class ClosureV extends FunctionV {
   constructor(public body: AST, public env: Env) {
-    super()
-    this.str = '<Closure created at depth ' + this.env.args.length + '>'
+    super(`깊이 ${env.args.length}에서 생성된 `)
   }
 
   execute(metadata: Metadata, argv: Value[]) {
@@ -312,7 +311,7 @@ export class ClosureV extends FunctionV {
 export class BuiltinModuleV extends FunctionV {
   constructor(public module: Evaluation, name: string) {
     super()
-    this.str = '<Builtin Module ' + name + '>'
+    this.str = '<기본 제공 모듈 ' + name + '>'
   }
 
   execute(metadata: Metadata, argv: Value[]) {

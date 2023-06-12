@@ -4,7 +4,7 @@ from test.test_base import TestBase
 class TestByte(TestBase):
     def test_byte_basic(self):
         _test = self._assert_execute
-        _test("ㅂ ㅂ ㅂㅎㄷ", "<Builtin Module ㅂ ㅂ>")
+        _test("ㅂ ㅂ ㅂㅎㄷ", "<기본 제공 모듈 ㅂ ㅂ>")
 
     def test_utf_8(self):
         _test = self._assert_execute

@@ -24,7 +24,7 @@ _MODE_TABLE: dict[str, Literal["rb", "wb", "ab", "r+b", "w+b", "a+b"]] = {
 
 class File(AS.Function):
     def __init__(self, file: BinaryIO):
-        super().__init__("File-accessing ")
+        super().__init__("파일 접근 ")
         self._file = file
 
     def __call__(

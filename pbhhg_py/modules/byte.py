@@ -17,7 +17,7 @@ class Codec(AS.Function):
         num_bytes: AS.StrictValue,
         big_endian: AS.StrictValue | None = None,
     ):
-        super().__init__("Bytes codec utility ")
+        super().__init__("바이트열 부/복호화 ")
         [scheme, num_bytes] = utils.check_type(
             metadata, [scheme, num_bytes], AS.Integer
         )
@@ -49,7 +49,7 @@ class Codec(AS.Function):
         except Exception as err:
             raise error.UnsuspectedHangeulValueError(
                 metadata,
-                f"요청된 변환을 수행하지 못했습니다. 변환기: {repr(self)}, 인수: {argv}",
+                f"요청된 변환을 수행하지 못했습니다. 변환기: {repr(self)}, 인수: {argv}\n{err}",
             ) from None
 
     def _get_codec(self):

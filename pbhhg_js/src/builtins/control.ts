@@ -1,5 +1,5 @@
 import * as AS from '../abstractSyntax'
-import { checkArity, checkType } from '../utils'
+import { checkArity, checkType, recursiveMap } from '../utils'
 
 export default function (
   procFunctional: AS.ProcFunctionalFn,
@@ -14,7 +14,7 @@ export default function (
   function _try(metadata: AS.Metadata, argv: AS.Value[]) {
     checkArity(metadata, argv, 2)
     try {
-      return strict(argv[0])
+      return recursiveMap(argv[0], strict)
     } catch (error) {
       if (error instanceof AS.UnsuspectedHangeulError) {
         const fun = procFunctional(metadata, argv[1])

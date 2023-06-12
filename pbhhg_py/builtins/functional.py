@@ -6,7 +6,7 @@ from pbhhg_py import utils
 
 class Pipe(AS.Function):
     def __init__(self, evaluations: Sequence[AS.Evaluation]):
-        super().__init__("Piped ")
+        super().__init__("연결된 ")
         self._evaluations = evaluations
 
     def __call__(
@@ -20,7 +20,7 @@ class Pipe(AS.Function):
 
 class Collect(AS.Function):
     def __init__(self, evaluation: AS.Evaluation):
-        super().__init__("Collectedly-Receiving ")
+        super().__init__("모아 받는 ")
         self._evaluation = evaluation
 
     def __call__(
@@ -34,7 +34,7 @@ class Collect(AS.Function):
 
 class Spread(AS.Function):
     def __init__(self, evaluation: AS.Evaluation):
-        super().__init__("Spreadly-Receiving ")
+        super().__init__("펼쳐 받는 ")
         self._evaluation = evaluation
 
     def __call__(

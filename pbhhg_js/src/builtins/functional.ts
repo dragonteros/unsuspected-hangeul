@@ -3,7 +3,7 @@ import { checkArity, checkType } from '../utils'
 
 class PipeV extends AS.FunctionV {
   constructor(private funs: AS.Evaluation[]) {
-    super('Piped ')
+    super('연결된 ')
   }
 
   execute(metadata: AS.Metadata, args: AS.Value[]) {
@@ -13,7 +13,7 @@ class PipeV extends AS.FunctionV {
 }
 class CollectV extends AS.FunctionV {
   constructor(private fn: AS.Evaluation, private strict: AS.StrictFn) {
-    super('Collectedly-Receiving ')
+    super('모아 받는 ')
   }
 
   execute(metadata: AS.Metadata, args: AS.Value[]) {
@@ -25,7 +25,7 @@ class CollectV extends AS.FunctionV {
 }
 class SpreadV extends AS.FunctionV {
   constructor(private fn: AS.Evaluation) {
-    super('Spreadly-Receiving ')
+    super('펼쳐 받는 ')
   }
 
   execute(metadata: AS.Metadata, args: AS.Value[]) {
