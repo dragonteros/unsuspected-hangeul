@@ -3,6 +3,15 @@ import * as E from '../error'
 import { arrayToInt, intToArray } from '../numbers'
 import { checkArity, checkType } from '../utils'
 
+function _isBigEndianSystem() {
+  // Copied from:
+  // https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/DataView#endianness
+  const buffer = new ArrayBuffer(2)
+  new DataView(buffer).setInt16(0, 256, false /* big endian */)
+  // Int16Array uses the platform's endianness.
+  return new Int16Array(buffer)[0] === 256
+}
+
 function _write(
   view: DataView,
   arr: number[],
@@ -147,7 +156,7 @@ class Codec extends AS.FunctionV {
       }
 
       let view = new DataView(buf)
-      let bigEndian = this.bigEndian || false
+      let bigEndian = this.bigEndian ?? _isBigEndianSystem()
       if (this.endianness === '') {
         const getter = (
           this.numBytes > 2 ? view.getUint32 : view.getUint16

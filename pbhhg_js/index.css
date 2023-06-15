@@ -46,6 +46,10 @@ textarea {
     border: none;
 }
 
+pre {
+    white-space: pre-wrap;
+}
+
 #output {
     text-align: justify;
     width: 100%;

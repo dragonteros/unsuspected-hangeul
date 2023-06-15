@@ -120,7 +120,7 @@ class Boolean:
     value: bool
 
     def as_key(self) -> typing.Generator[Value, StrictValue, int]:
-        return hash(("평범한 한글/참거짓", self.value))
+        return hash(("평범한 한글/논릿값", self.value))
         yield
 
     def format(self) -> typing.Generator[Value, StrictValue, str]:

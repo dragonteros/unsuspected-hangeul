@@ -1,4 +1,16 @@
-# Aheui interpreter in Unsuspected Hangeul
+"""Aheui interpreter in Unsuspected Hangeul
+
+It passes all the standard aheui test set, although 'loop' takes very much time.
+
+Note that this code is also an Aheui program, making it a polyglot of Aheui and
+Unsuspected Hangeul.
+
+Usage (Python backend):
+    $ python -m pbhhg_py.cli <path to this file> <path to some aheui file>
+
+Usage (Node.js backend)
+    $ node pbhhg_js/cli <path to this file> <path to some aheui file>
+"""
 
 def aheui(filepath: str) -> IO[int]:
     ㄱㅇㄱ ㄹ(rb) 꺼내ㅎㄷ  # IO[File['rb']]
@@ -599,13 +611,13 @@ def aheui(filepath: str) -> IO[int]:
                 ㄱㅇㄱ(x) ㄴㅇㄱ(y) ㄷㅇㄴㅎㄷ  # read_table(x, y)
                 def _(
                     cell: tuple[int, int, int] | None
-                ) -> IO[tuple[int, int, list[list[int]], int, bytes]]:
-                    if cell is None:
-                       [ㄷㅇㄴ, ㄹㅇㄴ, ㅁㅇㄴ, ㅂㅇㄴ, ㅅㅇㄴ] 목록ㅎㅂ 감싸ㅎㄴ 
-                    else:
-                        if choseong == HIEUH:
-                            # NOTE: on_resolve expects an IO so wrap it
-                            빈값ㅎㄱ 감싸ㅎㄴ
+※              ) -> IO[tuple[int, int, list[list[int]], int, bytes]]:
+aheui               if cell is None:
+polyglot                [ㄷㅇㄴ, ㄹㅇㄴ, ㅁㅇㄴ, ㅂㅇㄴ, ㅅㅇㄴ] 목록ㅎㅂ 감싸ㅎㄴ 
+starts              else:
+here                    if choseong == HIEUH:
+↓                          # NOTE: on_resolve expects an IO so wrap it
+빈ㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣㅣ값 ㅎㄱ 감싸ㅎㄴ
                             def quit(_: None) -> NoReturn:
                                 종료코드
                                 ㄱ(0) if not stores[selected_fd] else
@@ -617,7 +629,10 @@ def aheui(filepath: str) -> IO[int]:
                         else:
                             [ㄱ ㄱㅇㄱㅎㄴ, ㄷ ㄱㅇㄱㅎㄴ] 목록ㅎㄷ  # [cho, jong]
                             ㄴ ㄱㅇㄱㅎㄴ ㄷㅇㄴ ㄹㅇㄴ ㄴㅇㄷㅎㄹ  # get_velocity
-                            [ㅁㅇㄴ, ㅂㅇㄴ, ㅅㅇㄴ] 목록ㅎㄹ
+                            [
+믕ㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅡㅇㄴ,
+                                ㅂㅇㄴ,
+                            ㅅㅇㄴ] 목록ㅎㄹ
                             더ㅎㄹ
                             ㄱㅇㄷ ㅁㅂㅎㄴㅎㄴ
                         ㄱ ㄱㅇㄱㅎㄴ 듷듷긓(18) ㄴㅎㄷㅎㄷ
@@ -645,4 +660,10 @@ def aheui(filepath: str) -> IO[int]:
             ㅎ:ㄱㄹㅎㄹ
         ㅎㅎㅁ
     하:기로 하다
-ㅎ
+희ㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢㅢ
+↑
+aheui
+polyglot
+ends
+here
+※

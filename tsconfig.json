@@ -17,6 +17,6 @@
     "baseUrl": ".",
     "lib": ["esnext", "dom"]
   },
-  "include": ["pbhhg_js/src/**/*.ts"],
+  "include": ["pbhhg_js/src/**/*.ts", "pbhhg_js/types/**/*.ts"],
   "exclude": ["node_modules"]
 }

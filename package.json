@@ -4,8 +4,7 @@
   "main": "pbhhg_js/dist/pbhhg.js",
   "dependencies": {
     "complex.js": "^2.1.1",
-    "josa": "^3.0.1",
-    "string-width": "^6.1.0"
+    "eastasianwidth": "^0.2.0"
   },
   "devDependencies": {
     "@jest/globals": "^29.5.0",

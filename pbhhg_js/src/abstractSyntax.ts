@@ -1,6 +1,6 @@
 /** Abstract syntax and values. **/
 import Complex from 'complex.js'
-import stringWidth from 'string-width'
+import EastAsianWidth from 'eastasianwidth'
 import { isclose } from './numbers'
 
 export class Metadata {
@@ -19,8 +19,10 @@ export class Metadata {
       this.str =
         this.line +
         '\n' +
-        ' '.repeat(stringWidth(this.line.slice(0, this.start_col))) +
-        '^'.repeat(stringWidth(this.line.slice(this.start_col, this.end_col)))
+        ' '.repeat(EastAsianWidth.length(this.line.slice(0, this.start_col))) +
+        '^'.repeat(
+          EastAsianWidth.length(this.line.slice(this.start_col, this.end_col))
+        )
     }
     return this.str
   }

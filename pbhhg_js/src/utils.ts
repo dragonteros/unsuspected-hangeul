@@ -1,5 +1,4 @@
 /** Useful utilities **/
-import { josa } from 'josa'
 import * as AS from './abstractSyntax'
 import * as E from './error'
 
@@ -90,10 +89,8 @@ export function checkType<T extends AS.StrictValueType>(
   )
   throw new E.UnsuspectedHangeulTypeError(
     metadata,
-    josa(
-      `인수를 ${_formatArray(desiredTypeNames)} 중에서 주어야 하는데 ` +
-        `${_formatArray(argTypeNames)}#{를} 주었습니다.`
-    )
+    `인수를 ${_formatArray(desiredTypeNames)} 중에서 주어야 하는데 ` +
+      `${josa(_formatArray(argTypeNames), '을', '를')} 주었습니다.`
   )
 }
 
@@ -157,4 +154,16 @@ export function matchDefaults<T>(
     argv = argv.concat(defaults.slice(-deficiency))
   }
   return argv
+}
+
+export function josa(
+  content: string,
+  particleBatchim: string,
+  particleNoBatchim: string
+): string {
+  if (content.length === 0) return content + particleBatchim
+  const lastCode = content.charCodeAt(content.length - 1)
+  if (lastCode < 0xac00 || lastCode > 0xd7a3) return content + particleBatchim
+  const hasBatchim = (lastCode - 0xac00) % 28 !== 0
+  return content + (hasBatchim ? particleBatchim : particleNoBatchim)
 }
