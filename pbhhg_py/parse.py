@@ -145,7 +145,13 @@ def parse_token(
                     metadata, f"함수 호출 시 {arity}개의 인수를 요구했습니다."
                 )
 
-            fun = stack.pop()
+            try:
+                fun = stack.pop()
+            except IndexError:
+                raise error.UnsuspectedHangeulSyntaxError(
+                    metadata, "호출할 함수가 없습니다."
+                ) from None
+
             argv = stack[-arity:] if arity else []
             rest = stack[:-arity] if arity else stack
             if len(argv) < arity:
@@ -158,7 +164,12 @@ def parse_token(
             return rest + [AS.FunCall(fun, tuple(argv), metadata)]
 
         else:  # FunDef
-            body = stack.pop()
+            try:
+                body = stack.pop()
+            except IndexError:
+                raise error.UnsuspectedHangeulSyntaxError(
+                    metadata, "함수 몸통이 없습니다."
+                ) from None
             return stack + [AS.FunDef(body, metadata)]
 
     elif "ㅇ" in word:
@@ -166,11 +177,21 @@ def parse_token(
 
         if trailer:  # ArgRef
             relF = parse_number(trailer)
-            relA = stack.pop()
+            try:
+                relA = stack.pop()
+            except IndexError:
+                raise error.UnsuspectedHangeulSyntaxError(
+                    metadata, "인수 참조 구문이 잘못되었습니다."
+                ) from None
             return stack + [AS.ArgRef(relA, relF, metadata)]
 
         else:  # FunRef
-            relF = stack.pop()
+            try:
+                relF = stack.pop()
+            except IndexError:
+                raise error.UnsuspectedHangeulSyntaxError(
+                    metadata, "함수 참조 구문이 잘못되었습니다."
+                ) from None
             if not isinstance(relF, AS.Literal):
                 raise error.UnsuspectedHangeulSyntaxError(
                     metadata, "함수 참조 시에는 정수 리터럴만 허용됩니다."

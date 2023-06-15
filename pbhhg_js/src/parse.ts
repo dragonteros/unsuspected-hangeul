@@ -155,7 +155,11 @@ function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
       }
 
       const fun = stack.pop()
-      if (fun == null) throw Error('Internal::parseToken::EMPTY_STACK')
+      if (fun == null)
+        throw new E.UnsuspectedHangeulSyntaxError(
+          metadata,
+          '호출할 함수가 없습니다.'
+        )
       if (_arity === 0) {
         stack.push(new AS.FunCall(metadata, fun, []))
       } else {
@@ -171,7 +175,11 @@ function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
     } else {
       // AS.FunDef
       const body = stack.pop()
-      if (body == null) throw Error('Internal::parseToken::EMPTY_STACK')
+      if (body == null)
+        throw new E.UnsuspectedHangeulSyntaxError(
+          metadata,
+          '함수 몸통이 없습니다.'
+        )
       stack.push(new AS.FunDef(metadata, body))
     }
   } else if (word.indexOf('ㅇ') !== -1) {
@@ -179,13 +187,21 @@ function parseToken(token: [string, AS.Metadata], stack: AS.AST[]) {
     if (trailer !== '') {
       // AS.ArgRef
       const relA = stack.pop()
-      if (relA == null) throw Error('Internal::parseToken::EMPTY_STACK')
+      if (relA == null)
+        throw new E.UnsuspectedHangeulSyntaxError(
+          metadata,
+          '인수 참조 구문이 잘못되었습니다.'
+        )
       const relF = Number(parseNumber(trailer))
       stack.push(new AS.ArgRef(metadata, relA, relF))
     } else {
       // AS.FunRef
       const relF = stack.pop()
-      if (relF == null) throw Error('Internal::parseToken::EMPTY_STACK')
+      if (relF == null)
+        throw new E.UnsuspectedHangeulSyntaxError(
+          metadata,
+          '함수 참조 구문이 잘못되었습니다.'
+        )
       if (!(relF instanceof AS.Literal)) {
         throw new E.UnsuspectedHangeulSyntaxError(
           metadata,
