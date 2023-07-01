@@ -5,7 +5,7 @@
     "strict": true,
 
     "allowJs": true,
-    "moduleResolution": "node",
+    "moduleResolution": "NodeNext",
     "resolveJsonModule": true,
 
     "experimentalDecorators": true,

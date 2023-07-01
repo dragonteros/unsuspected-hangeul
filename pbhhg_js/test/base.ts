@@ -1,7 +1,7 @@
 import assert from 'node:assert'
 import { StringDecoder } from 'node:string_decoder'
 
-import { getLoadUtils } from '../cli'
+import { getLoadUtils } from '../node'
 import { File, IOUtils } from '../src/abstractSyntax'
 import { main } from '../src/main'
 

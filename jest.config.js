@@ -1,5 +1,5 @@
 /** @type {import('jest').Config} */
-const config = {
+export default {
   preset: 'ts-jest/presets/js-with-ts-esm',
   testEnvironment: 'node',
   transformIgnorePatterns: ['//node_modules'],
@@ -12,5 +12,3 @@ const config = {
   },
   workerThreads: true,
 }
-
-module.exports = config

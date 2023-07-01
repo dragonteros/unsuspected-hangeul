@@ -106,6 +106,3 @@ export async function run(
   if (exitCode instanceof AS.NilV) return 0
   return Number(exitCode.value)
 }
-
-exports.main = main
-exports.run = run

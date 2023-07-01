@@ -6,7 +6,6 @@
 <head>
   <title>평범한 한글 해석기</title>
   <script>
-    var exports = {}
     var ioUtils = {
       print: function (s) { alert(s) },
       input: function () { return prompt('') }
@@ -26,16 +25,14 @@
       return string.replace('<', '&lt;').replace('>', '&gt;')
     }
   </script>
-  <script type="module" src='pbhhg_js/dist/pbhhg.js' charset="UTF-8"></script>
-  <link rel='stylesheet' href='pbhhg_js/index.css'>
-  </link>
+  <link rel='stylesheet' href='pbhhg_js/index.css'></link>
 </head>
 
 <body>
   <header>
     <div class='wrapper'>
-      <button onclick='run()'>실행 (Ctrl+Enter)</button>
-      <button onclick='clean()'>치우기</button>
+      <button id="run">실행 (Ctrl+Enter)</button>
+      <button id="clean">치우기</button>
     </div>
   </header>
   <main>
@@ -45,7 +42,9 @@
     </div>
   </main>
 
-  <script>
+  <script type="module">
+    import * as pbhhg from "./pbhhg_js/dist/pbhhg.module.js"
+
     const code = document.getElementById('code')
     const output = document.getElementById('output')
     function clean() {
@@ -55,7 +54,7 @@
     async function run() {
       let result;
       try {
-        result = await exports.main(
+        result = await pbhhg.main(
           "<user code>",
           code.value,
           ioUtils,
@@ -76,6 +75,8 @@
     code.addEventListener('keydown', async function (e) {
       if (e.ctrlKey && e.key == 'Enter') await run()
     })
+    document.getElementById('clean').addEventListener('click', clean)
+    document.getElementById('run').addEventListener('click', run)
   </script>
 </body>
 
