@@ -1,6 +1,6 @@
 {
   "name": "unsuspected-hangeul",
-  "version": "0.8.0",
+  "version": "0.8.1",
   "devDependencies": {
     "@jest/globals": "^29.5.0",
     "@types/josa": "^3.0.2",
@@ -30,10 +30,10 @@
     "format": "prettier --write pbhhg_js/src"
   },
   "type": "module",
-  "main": "./pbhhg_js/dist/pbhhg.cjs",
+  "main": "./pbhhg_js/dist/main.cjs",
   "source": "./pbhhg_js/src/main.ts",
-  "exports": "./pbhhg_js/dist/pbhhg.js",
-  "module": "./pbhhg_js/dist/pbhhg.module.js",
+  "exports": "./pbhhg_js/dist/main.js",
+  "module": "./pbhhg_js/dist/main.module.js",
   "types": "./pbhhg_js/dist/main.d.ts",
   "files": [
     "./pbhhg_js/dist/*"

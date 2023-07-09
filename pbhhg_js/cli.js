@@ -1,7 +1,7 @@
 /* CLI for Node.js */
 import * as url from 'node:url'
 
-import * as pbhhg from './dist/pbhhg.module.js'
+import * as pbhhg from './dist/main.module.js'
 import { BufferedReader, BufferedWriter, getLoadUtils } from './node.js'
 
 async function interactiveSession() {
