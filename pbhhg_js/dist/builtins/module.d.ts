@@ -1,2 +1,6 @@
 import * as AS from '../abstractSyntax';
-export default function (procFunctional: AS.ProcFunctionalFn, strict: AS.StrictFn, loadUtils: AS.LoadUtils): Record<string, AS.Evaluation>;
+declare function _load(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.Value;
+declare const _default: {
+    ㅂ: typeof _load;
+};
+export default _default;

@@ -61,56 +61,55 @@ export type LoadUtils = {
 export declare class Env {
     funs: ClosureV[];
     args: Value[][];
-    utils: LoadUtils;
-    constructor(funs: ClosureV[], args: Value[][], utils: LoadUtils);
+    constructor(funs: ClosureV[], args: Value[][]);
 }
 export declare class UnsuspectedHangeulError extends Error {
     err: ErrorV;
     constructor(err: ErrorV);
 }
 declare abstract class ValueBase {
-    abstract format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
+    abstract format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
 }
 export declare class IntegerV extends ValueBase {
     value: bigint;
     static typeName: string;
     constructor(value: bigint);
-    format(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
 }
 export declare class FloatV extends ValueBase {
     value: number;
     static typeName: string;
     constructor(value: number);
-    format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
 }
 export declare class ComplexV extends ValueBase {
     value: Complex;
     static typeName: string;
     constructor(value: Complex);
-    format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
 }
 export declare class BooleanV extends ValueBase {
     value: boolean;
     static typeName: string;
     constructor(value: boolean);
-    format(strict: StrictFn): "True" | "False";
+    format(context: EvalContextBase): "True" | "False";
 }
 export declare class ListV extends ValueBase {
     value: Value[];
     static typeName: string;
     constructor(value: Value[]);
-    format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
 }
 export declare class StringV extends ValueBase {
     str: string;
     static typeName: string;
     value: string[];
     constructor(str: string);
-    format(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
 }
 export declare class BytesV extends ValueBase {
     value: ArrayBuffer;
@@ -118,7 +117,7 @@ export declare class BytesV extends ValueBase {
     private str?;
     constructor(value: ArrayBuffer);
     formatByte(c: number): string;
-    format(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
 }
 export declare class DictV extends ValueBase {
     value: Record<string, Value>;
@@ -128,8 +127,8 @@ export declare class DictV extends ValueBase {
     constructor(value: Record<string, Value>);
     keys(): string[];
     values(): Value[];
-    format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
 }
 export declare class IOV extends ValueBase {
     inst: string;
@@ -137,33 +136,33 @@ export declare class IOV extends ValueBase {
     continuation: (doIO: (ioValue: IOV) => Promise<NonIOStrictValue>, ioUtils: IOUtils) => Promise<StrictValue>;
     static typeName: string;
     constructor(inst: string, argv: Value[], continuation: (doIO: (ioValue: IOV) => Promise<NonIOStrictValue>, ioUtils: IOUtils) => Promise<StrictValue>);
-    format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
 }
 export declare class NilV extends ValueBase {
     static typeName: string;
     constructor();
-    format(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
 }
 export declare abstract class FunctionV extends ValueBase {
     static typeName: string;
     private id;
     protected str: string;
     constructor(adj?: string);
-    format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
-    abstract execute(metadata: Metadata, argv: Value[]): Value;
+    format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
+    abstract execute(context: EvalContextBase, metadata: Metadata, argv: Value[]): Value;
 }
 export declare class ClosureV extends FunctionV {
     body: AST;
     env: Env;
     constructor(body: AST, env: Env);
-    execute(metadata: Metadata, argv: Value[]): ExprV;
+    execute(context: EvalContextBase, metadata: Metadata, argv: Value[]): ExprV;
 }
 export declare class BuiltinModuleV extends FunctionV {
     module: Evaluation;
     constructor(module: Evaluation, name: string);
-    execute(metadata: Metadata, argv: Value[]): Value;
+    execute(context: EvalContextBase, metadata: Metadata, argv: Value[]): Value;
 }
 export declare class ErrorV extends ValueBase {
     metadatas: Metadata[];
@@ -171,8 +170,8 @@ export declare class ErrorV extends ValueBase {
     value: StrictValue[];
     static typeName: string;
     constructor(metadatas: Metadata[], message: string, value: StrictValue[]);
-    format(strict: StrictFn): string;
-    asKey(strict: StrictFn): string;
+    format(context: EvalContextBase): string;
+    asKey(context: EvalContextBase): string;
 }
 export declare class ExprV {
     expr: AST;
@@ -191,5 +190,11 @@ export type StrictValue = NonIOStrictValue | IOV;
 export type Value = StrictValue | ExprV;
 export type ProcFunctionalFn = (metadata: Metadata, fun: Value, generalCallable?: boolean) => Evaluation;
 export type StrictFn = (value: Value) => StrictValue;
-export type Evaluation = (metadata: Metadata, args: Value[]) => Value;
+export type Evaluation = (context: EvalContextBase, metadata: Metadata, argv: Value[]) => Value;
+export declare abstract class EvalContextBase {
+    loadUtils: LoadUtils;
+    constructor(loadUtils: LoadUtils);
+    abstract strict(value: Value): StrictValue;
+    abstract procFunctional(metadata: Metadata, fun: Value, generalCallable?: boolean): Evaluation;
+}
 export {};

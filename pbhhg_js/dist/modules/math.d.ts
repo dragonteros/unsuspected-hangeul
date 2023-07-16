@@ -1,27 +1,29 @@
 import * as AS from '../abstractSyntax';
-export default function (procFunctional: AS.ProcFunctionalFn, strict: AS.StrictFn, loadUtils: AS.LoadUtils): {
+declare function _atan(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.FloatV | AS.ComplexV;
+declare const _default: {
     ㅅ: {
         ㅂ: number;
         ㅈ: number;
         ㅁ: number;
         ㄴ: number;
-        ㄱ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.BooleanV;
-        ㄴㄴ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.BooleanV;
-        ㅁㄴ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.BooleanV;
-        ㅈㄷ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV | AS.FloatV | AS.ComplexV;
-        ㄹㄱ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
-        ㅅㄴ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
-        ㄴㅅ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
-        ㄱㅅ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
-        ㅅㄱ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
-        ㄷㄴ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
-        ㄴㄷ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
+        ㄱ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.BooleanV;
+        ㄴㄴ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.BooleanV;
+        ㅁㄴ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.BooleanV;
+        ㅈㄷ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV | AS.FloatV | AS.ComplexV;
+        ㄹㄱ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
+        ㅅㄴ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
+        ㄴㅅ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
+        ㄱㅅ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
+        ㅅㄱ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
+        ㄷㄴ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.FloatV | AS.ComplexV;
+        ㄴㄷ: typeof _atan;
         ㅂㄹ: {
-            ㄱ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
-            ㄴ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
-            ㄷ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
-            ㄹ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
-            ㅁ: (metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
+            ㄱ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
+            ㄴ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
+            ㄷ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
+            ㄹ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
+            ㅁ: (context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]) => AS.IntegerV;
         };
     };
 };
+export default _default;

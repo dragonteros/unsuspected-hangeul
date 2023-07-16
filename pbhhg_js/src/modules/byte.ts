@@ -58,7 +58,6 @@ class Codec extends AS.FunctionV {
   private endianness: 'big' | 'little' | ''
   private codec: AS.Evaluation
   constructor(
-    public strict: AS.StrictFn,
     metadata: AS.Metadata,
     scheme: AS.StrictValue,
     numBytes: AS.StrictValue,
@@ -90,10 +89,14 @@ class Codec extends AS.FunctionV {
       ')>'
   }
 
-  execute(metadata: AS.Metadata, argv: AS.Value[]) {
-    const _argv = argv.map(this.strict)
+  execute(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ) {
+    const _argv = argv.map((x) => context.strict(x))
     try {
-      return this.codec(metadata, _argv)
+      return this.codec(context, metadata, _argv)
     } catch (error) {
       if (error instanceof AS.UnsuspectedHangeulError) throw error
       throw new E.UnsuspectedHangeulValueError(
@@ -116,12 +119,17 @@ class Codec extends AS.FunctionV {
     }
   }
 
-  unicodeCodec(metadata: AS.Metadata, argv: AS.Value[]) {
+  unicodeCodec(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ) {
     checkArity(metadata, argv, 1)
-    const [arg] = checkType(metadata, argv.map(this.strict), [
-      AS.StringV,
-      AS.BytesV,
-    ])
+    const [arg] = checkType(
+      metadata,
+      argv.map((x) => context.strict(x)),
+      [AS.StringV, AS.BytesV]
+    )
     if (arg instanceof AS.StringV) {
       if (this.numBytes === 1) {
         const encoder = new TextEncoder()
@@ -172,13 +180,18 @@ class Codec extends AS.FunctionV {
     }
   }
 
-  integerCodec(metadata: AS.Metadata, argv: AS.Value[]) {
+  integerCodec(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ) {
     checkArity(metadata, argv, 1)
     const signed = this.scheme === 'signed'
-    const [arg] = checkType(metadata, argv.map(this.strict), [
-      AS.IntegerV,
-      AS.BytesV,
-    ])
+    const [arg] = checkType(
+      metadata,
+      argv.map((x) => context.strict(x)),
+      [AS.IntegerV, AS.BytesV]
+    )
     if (arg instanceof AS.IntegerV) {
       let num = arg.value
       const isNegative = num < 0
@@ -211,24 +224,26 @@ class Codec extends AS.FunctionV {
     }
   }
 
-  floatingPointCodec(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
+  floatingPointCodec(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ): AS.Value {
     throw EvalError('Not yet implemented')
   }
 }
 
-export default function (
-  procFunctional: AS.ProcFunctionalFn,
-  strict: AS.StrictFn,
-  loadUtils: AS.LoadUtils
-): Record<string, AS.Evaluation> {
-  function codec(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, [2, 3])
-    const _argv = argv.map(strict)
-    const scheme = _argv[0]
-    const numBytes = _argv[1]
-    const bigEndian = _argv.length > 2 ? _argv[2] : undefined
-    return new Codec(strict, metadata, scheme, numBytes, bigEndian)
-  }
-
-  return { ㅂ: codec }
+function codec(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, [2, 3])
+  const _argv = argv.map((x) => context.strict(x))
+  const scheme = _argv[0]
+  const numBytes = _argv[1]
+  const bigEndian = _argv.length > 2 ? _argv[2] : undefined
+  return new Codec(metadata, scheme, numBytes, bigEndian)
 }
+
+export default { ㅂ: codec }

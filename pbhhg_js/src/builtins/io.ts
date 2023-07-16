@@ -19,25 +19,31 @@ const MODE_TABLE = {
 } as const
 
 class FileV extends AS.FunctionV {
-  constructor(private file: AS.File, private strict: AS.StrictFn) {
+  constructor(private file: AS.File) {
     super('파일 접근 ')
   }
-  execute(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
+  execute(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ): AS.Value {
     checkMinArity(metadata, argv, 1)
-    const [command] = checkType(metadata, argv.slice(-1).map(this.strict), [
-      AS.IntegerV,
-    ])
+    const [command] = checkType(
+      metadata,
+      argv.slice(-1).map((x) => context.strict(x)),
+      [AS.IntegerV]
+    )
     const commandStr = encodeNumber(command.value)
     if (commandStr === 'ㄷ') {
-      return this.close(metadata, argv)
+      return this.close(context, metadata, argv)
     } else if (commandStr === 'ㄹ') {
-      return this.read(metadata, argv)
+      return this.read(context, metadata, argv)
     } else if (commandStr === 'ㅈㄹ') {
-      return this.write(metadata, argv)
+      return this.write(context, metadata, argv)
     } else if (commandStr === 'ㅈ') {
-      return this.seekOrTell(metadata, argv)
+      return this.seekOrTell(context, metadata, argv)
     } else if (commandStr === 'ㄱ') {
-      return this.truncate(metadata, argv)
+      return this.truncate(context, metadata, argv)
     } else {
       throw new E.UnsuspectedHangeulValueError(
         metadata,
@@ -45,7 +51,11 @@ class FileV extends AS.FunctionV {
       )
     }
   }
-  private close(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
+  private close(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ): AS.Value {
     checkArity(metadata, argv, 1)
     return new AS.IOV('FileV::close', [this], async (doIO, ioUtils) => {
       try {
@@ -59,9 +69,17 @@ class FileV extends AS.FunctionV {
       }
     })
   }
-  private read(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
+  private read(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ): AS.Value {
     checkArity(metadata, argv, 2)
-    const [count] = checkType(metadata, [this.strict(argv[0])], [AS.IntegerV])
+    const [count] = checkType(
+      metadata,
+      [context.strict(argv[0])],
+      [AS.IntegerV]
+    )
     return new AS.IOV('FileV::read', [this, count], async (doIO, ioUtils) => {
       try {
         const content = await this.file.read(Number(count.value))
@@ -74,9 +92,17 @@ class FileV extends AS.FunctionV {
       }
     })
   }
-  private write(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
+  private write(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ): AS.Value {
     checkArity(metadata, argv, 2)
-    const [content] = checkType(metadata, [this.strict(argv[0])], [AS.BytesV])
+    const [content] = checkType(
+      metadata,
+      [context.strict(argv[0])],
+      [AS.BytesV]
+    )
     return new AS.IOV(
       'FileV::write',
       [this, content],
@@ -93,9 +119,13 @@ class FileV extends AS.FunctionV {
       }
     )
   }
-  private seekOrTell(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
+  private seekOrTell(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ): AS.Value {
     checkMaxArity(metadata, argv, 3)
-    const _argv = argv.map(this.strict)
+    const _argv = argv.map((x) => context.strict(x))
     if (argv.length === 1) {
       return new AS.IOV('FileV::seekOrTell', [this], async (doIO, ioUtils) => {
         try {
@@ -146,9 +176,17 @@ class FileV extends AS.FunctionV {
       }
     )
   }
-  private truncate(metadata: AS.Metadata, argv: AS.Value[]): AS.Value {
+  private truncate(
+    context: AS.EvalContextBase,
+    metadata: AS.Metadata,
+    argv: AS.Value[]
+  ): AS.Value {
     checkMaxArity(metadata, argv, 2)
-    const _argv = checkType(metadata, argv.map(this.strict), [AS.IntegerV])
+    const _argv = checkType(
+      metadata,
+      argv.map((x) => context.strict(x)),
+      [AS.IntegerV]
+    )
     const size = _argv.length > 1 ? Number(_argv[0].value) : undefined
     return new AS.IOV(
       'FileV::truncate',
@@ -168,92 +206,120 @@ class FileV extends AS.FunctionV {
   }
 }
 
-export default function (
-  procFunctional: AS.ProcFunctionalFn,
-  strict: AS.StrictFn,
-  loadUtils: AS.LoadUtils
-): Record<string, AS.Evaluation> {
-  function _input(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, 0)
-    return new AS.IOV('ㄹ', argv, async function (doIO, ioUtils) {
-      const input = await ioUtils.input()
-      return input == null ? new AS.NilV() : new AS.StringV(input)
-    })
-  }
-  function _print(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, 1)
-    const _argv = checkType(metadata, argv.map(strict), [AS.StringV])
-    return new AS.IOV('ㅈㄹ', _argv, async function (doIO, ioUtils) {
-      ioUtils.print(_argv[0].str)
-      return new AS.NilV()
-    })
-  }
-  function _return(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, 1)
-    const arg = recursiveMap(argv[0], strict)
-    return new AS.IOV('ㄱㅅ', [arg], async function (doIO, ioUtils) {
-      return arg
-    })
-  }
-  function _bind(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, [2, 3])
-    const [ioToBind] = checkType(metadata, [strict(argv[0])], [AS.IOV])
-    return new AS.IOV('ㄱㄹ', argv, async function (doIO, ioUtils) {
-      let arg: AS.NonIOStrictValue
-      try {
-        arg = await doIO(ioToBind)
-      } catch (error) {
-        if (error instanceof AS.UnsuspectedHangeulError) {
-          if (argv.length < 3) throw error
-          const result = procFunctional(metadata, argv[2])(metadata, [
-            error.err,
-          ])
-          const [_result] = checkType(metadata, [strict(result)], [AS.IOV])
-          return _result
-        }
-        throw error
+function _input(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, 0)
+  return new AS.IOV('ㄹ', argv, async function (doIO, ioUtils) {
+    const input = await ioUtils.input()
+    return input == null ? new AS.NilV() : new AS.StringV(input)
+  })
+}
+function _print(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, 1)
+  const _argv = checkType(
+    metadata,
+    argv.map((x) => context.strict(x)),
+    [AS.StringV]
+  )
+  return new AS.IOV('ㅈㄹ', _argv, async function (doIO, ioUtils) {
+    ioUtils.print(_argv[0].str)
+    return new AS.NilV()
+  })
+}
+function _return(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, 1)
+  const arg = recursiveMap(argv[0], (x) => context.strict(x))
+  return new AS.IOV('ㄱㅅ', [arg], async function (doIO, ioUtils) {
+    return arg
+  })
+}
+function _bind(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, [2, 3])
+  const [ioToBind] = checkType(metadata, [context.strict(argv[0])], [AS.IOV])
+  return new AS.IOV('ㄱㄹ', argv, async function (doIO, ioUtils) {
+    let arg: AS.NonIOStrictValue
+    try {
+      arg = await doIO(ioToBind)
+    } catch (error) {
+      if (error instanceof AS.UnsuspectedHangeulError) {
+        if (argv.length < 3) throw error
+        const result = context.procFunctional(metadata, argv[2])(
+          context,
+          metadata,
+          [error.err]
+        )
+        const [_result] = checkType(
+          metadata,
+          [context.strict(result)],
+          [AS.IOV]
+        )
+        return _result
       }
-      const result = procFunctional(metadata, argv[1])(metadata, [arg])
-      const [_result] = checkType(metadata, [strict(result)], [AS.IOV])
-
-      return _result
-    })
-  }
-  function _file(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, 2)
-    const [path] = checkType(
+      throw error
+    }
+    const result = context.procFunctional(metadata, argv[1])(
+      context,
       metadata,
-      [strict(argv[0])],
-      [AS.IntegerV, AS.StringV]
+      [arg]
     )
-    const _path = path instanceof AS.IntegerV ? Number(path.value) : path.str
+    const [_result] = checkType(metadata, [context.strict(result)], [AS.IOV])
 
-    const [mode] = checkType(metadata, [strict(argv[1])], [AS.IntegerV])
-    const modeStr = encodeNumber(mode.value)
-    if (!(modeStr in MODE_TABLE)) {
-      throw new E.UnsuspectedHangeulValueError(
+    return _result
+  })
+}
+function _file(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, 2)
+  const [path] = checkType(
+    metadata,
+    [context.strict(argv[0])],
+    [AS.IntegerV, AS.StringV]
+  )
+  const _path = path instanceof AS.IntegerV ? Number(path.value) : path.str
+
+  const [mode] = checkType(metadata, [context.strict(argv[1])], [AS.IntegerV])
+  const modeStr = encodeNumber(mode.value)
+  if (!(modeStr in MODE_TABLE)) {
+    throw new E.UnsuspectedHangeulValueError(
+      metadata,
+      `${modeStr}은 기본 제공 함수 ㄱㄴ이 이해하는 파일 열기 방식이 아닙니다.`
+    )
+  }
+  const _mode = MODE_TABLE[modeStr as keyof typeof MODE_TABLE]
+  return new AS.IOV('ㄱㄴ', [path, mode], async function (doIO, ioUtils) {
+    try {
+      return new FileV(context.loadUtils.open(_path, _mode))
+    } catch (error) {
+      throw new E.UnsuspectedHangeulOSError(
         metadata,
-        `${modeStr}은 기본 제공 함수 ㄱㄴ이 이해하는 파일 열기 방식이 아닙니다.`
+        `파일 열기에 실패하였습니다: ${error}`
       )
     }
-    const _mode = MODE_TABLE[modeStr as keyof typeof MODE_TABLE]
-    return new AS.IOV('ㄱㄴ', [path, mode], async function (doIO, ioUtils) {
-      try {
-        return new FileV(loadUtils.open(_path, _mode), strict)
-      } catch (error) {
-        throw new E.UnsuspectedHangeulOSError(
-          metadata,
-          `파일 열기에 실패하였습니다: ${error}`
-        )
-      }
-    })
-  }
+  })
+}
 
-  return {
-    ㄹ: _input,
-    ㅈㄹ: _print,
-    ㄱㅅ: _return,
-    ㄱㄹ: _bind,
-    ㄱㄴ: _file,
-  }
+export default {
+  ㄹ: _input,
+  ㅈㄹ: _print,
+  ㄱㅅ: _return,
+  ㄱㄹ: _bind,
+  ㄱㄴ: _file,
 }

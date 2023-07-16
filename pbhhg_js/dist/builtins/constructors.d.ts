@@ -1,2 +1,20 @@
 import * as AS from '../abstractSyntax';
-export default function (procFunctional: AS.ProcFunctionalFn, strict: AS.StrictFn, loadUtils: AS.LoadUtils): Record<string, AS.Evaluation>;
+declare function _list(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.ListV;
+declare function _dict(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.DictV;
+declare function _string(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.StringV;
+declare function _integer(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.IntegerV;
+declare function _float(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.FloatV;
+declare function _complex(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.ComplexV;
+declare function _nil(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.NilV;
+declare function _exception(context: AS.EvalContextBase, metadata: AS.Metadata, argv: AS.Value[]): AS.ErrorV;
+declare const _default: {
+    ㅅㅈ: typeof _dict;
+    ㅁㄹ: typeof _list;
+    ㅁㅈ: typeof _string;
+    ㅈㅅ: typeof _integer;
+    ㅅㅅ: typeof _float;
+    ㅂㅅ: typeof _complex;
+    ㅂㄱ: typeof _nil;
+    ㄷㅂ: typeof _exception;
+};
+export default _default;

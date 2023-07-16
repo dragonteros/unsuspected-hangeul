@@ -53,131 +53,181 @@ function modPow(base: bigint, exponent: bigint, modulo: bigint): bigint {
   return result
 }
 
-export default function (
-  procFunctional: AS.ProcFunctionalFn,
-  strict: AS.StrictFn,
-  loadUtils: AS.LoadUtils
-): Record<string, AS.Evaluation> {
-  function _multiply(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkMinArity(metadata, argv, 1)
-    const first = checkType(
+function _multiply(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkMinArity(metadata, argv, 1)
+  const first = checkType(
+    metadata,
+    [context.strict(argv[0])],
+    [AS.BooleanV, ...AS.NumberV]
+  )
+  if (isType(first, AS.NumberV)) {
+    const _argv = checkType(
       metadata,
-      [strict(argv[0])],
-      [AS.BooleanV, ...AS.NumberV]
+      argv.map((x) => context.strict(x)),
+      AS.NumberV
     )
-    if (isType(first, AS.NumberV)) {
-      const _argv = checkType(metadata, argv.map(strict), AS.NumberV)
-      return wrapNumber(_argv.map((arg) => arg.value).reduce(mul))
-    }
+    return wrapNumber(_argv.map((arg) => arg.value).reduce(mul))
+  }
 
+  // short-circuiting
+  for (const arg of argv) {
+    const [_arg] = checkType(metadata, [context.strict(arg)], [AS.BooleanV])
+    if (!_arg.value) return new AS.BooleanV(false)
+  }
+  return new AS.BooleanV(true)
+}
+
+function _add(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkMinArity(metadata, argv, 1)
+  const first = checkType(
+    metadata,
+    [context.strict(argv[0])],
+    [AS.BooleanV, AS.DictV, ...AS.NumberV, ...AS.SequenceV]
+  )
+  if (isType(first, [AS.BooleanV])) {
     // short-circuiting
     for (const arg of argv) {
-      const [_arg] = checkType(metadata, [strict(arg)], [AS.BooleanV])
-      if (!_arg.value) return new AS.BooleanV(false)
+      const [_arg] = checkType(metadata, [context.strict(arg)], [AS.BooleanV])
+      if (_arg.value) return new AS.BooleanV(true)
     }
-    return new AS.BooleanV(true)
+    return new AS.BooleanV(false)
   }
 
-  function _add(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkMinArity(metadata, argv, 1)
-    const first = checkType(
+  if (isType(first, [AS.StringV])) {
+    const _argv = checkType(
       metadata,
-      [strict(argv[0])],
-      [AS.BooleanV, AS.DictV, ...AS.NumberV, ...AS.SequenceV]
+      argv.map((x) => context.strict(x)),
+      [AS.StringV]
     )
-    if (isType(first, [AS.BooleanV])) {
-      // short-circuiting
-      for (const arg of argv) {
-        const [_arg] = checkType(metadata, [strict(arg)], [AS.BooleanV])
-        if (_arg.value) return new AS.BooleanV(true)
-      }
-      return new AS.BooleanV(false)
-    }
-
-    if (isType(first, [AS.StringV])) {
-      const _argv = checkType(metadata, argv.map(strict), [AS.StringV])
-      return new AS.StringV(_argv.map((arg) => arg.str).join(''))
-    }
-    if (isType(first, [AS.BytesV])) {
-      const _argv = checkType(metadata, argv.map(strict), [AS.BytesV])
-      return new AS.BytesV(joinArrayBuffer(_argv.map(extractValue)))
-    }
-    if (isType(first, [AS.ListV])) {
-      const _argv = checkType(metadata, argv.map(strict), [AS.ListV])
-      return new AS.ListV(_argv.map(extractValue).reduce((a, b) => a.concat(b)))
-    }
-    if (isType(first, [AS.DictV])) {
-      const _argv = checkType(metadata, argv.map(strict), [AS.DictV])
-      const result = {}
-      _argv.map(extractValue).forEach((d) => Object.assign(result, d))
-      return new AS.DictV(result)
-    }
-    const _argv = checkType(metadata, argv.map(strict), AS.NumberV)
-    return wrapNumber(_argv.map((arg) => arg.value).reduce(add))
+    return new AS.StringV(_argv.map((arg) => arg.str).join(''))
   }
+  if (isType(first, [AS.BytesV])) {
+    const _argv = checkType(
+      metadata,
+      argv.map((x) => context.strict(x)),
+      [AS.BytesV]
+    )
+    return new AS.BytesV(joinArrayBuffer(_argv.map(extractValue)))
+  }
+  if (isType(first, [AS.ListV])) {
+    const _argv = checkType(
+      metadata,
+      argv.map((x) => context.strict(x)),
+      [AS.ListV]
+    )
+    return new AS.ListV(_argv.map(extractValue).reduce((a, b) => a.concat(b)))
+  }
+  if (isType(first, [AS.DictV])) {
+    const _argv = checkType(
+      metadata,
+      argv.map((x) => context.strict(x)),
+      [AS.DictV]
+    )
+    const result = {}
+    _argv.map(extractValue).forEach((d) => Object.assign(result, d))
+    return new AS.DictV(result)
+  }
+  const _argv = checkType(
+    metadata,
+    argv.map((x) => context.strict(x)),
+    AS.NumberV
+  )
+  return wrapNumber(_argv.map((arg) => arg.value).reduce(add))
+}
 
-  function _exponentiate(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, [2, 3])
-    const _argv = checkType(metadata, argv.map(strict), AS.NumberV)
-    if (_argv.length === 3) {
-      const [base, exp, mod] = checkType(metadata, _argv, [AS.IntegerV])
-      try {
-        return new AS.IntegerV(modPow(base.value, exp.value, mod.value))
-      } catch (err) {
-        if (err instanceof Error) {
-          throw new E.UnsuspectedHangeulArithmeticError(metadata, err.message)
-        }
-        throw err
-      }
-    }
-    checkArity(metadata, _argv, 2)
+function _exponentiate(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, [2, 3])
+  const _argv = checkType(
+    metadata,
+    argv.map((x) => context.strict(x)),
+    AS.NumberV
+  )
+  if (_argv.length === 3) {
+    const [base, exp, mod] = checkType(metadata, _argv, [AS.IntegerV])
     try {
-      return wrapNumber(pow(_argv[0].value, _argv[1].value))
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new E.UnsuspectedHangeulDivisionError(metadata, error.message)
+      return new AS.IntegerV(modPow(base.value, exp.value, mod.value))
+    } catch (err) {
+      if (err instanceof Error) {
+        throw new E.UnsuspectedHangeulArithmeticError(metadata, err.message)
       }
-      throw error
+      throw err
     }
   }
-
-  function _integerDivision(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, 2)
-    const _argv = checkType(metadata, argv.map(strict), AS.RealV)
-    try {
-      return wrapNumber(div(_argv[0].value, _argv[1].value))
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new E.UnsuspectedHangeulDivisionError(
-          metadata,
-          '0의 역수를 구하려고 했습니다.'
-        )
-      }
-      throw error
+  checkArity(metadata, _argv, 2)
+  try {
+    return wrapNumber(pow(_argv[0].value, _argv[1].value))
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new E.UnsuspectedHangeulDivisionError(metadata, error.message)
     }
+    throw error
   }
+}
 
-  function _remainder(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkArity(metadata, argv, 2)
-    const _argv = checkType(metadata, argv.map(strict), AS.RealV)
-    try {
-      return wrapNumber(mod(_argv[0].value, _argv[1].value))
-    } catch (error) {
-      if (error instanceof Error) {
-        throw new E.UnsuspectedHangeulDivisionError(
-          metadata,
-          '0의 역수를 구하려고 했습니다.'
-        )
-      }
-      throw error
+function _integerDivision(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, 2)
+  const _argv = checkType(
+    metadata,
+    argv.map((x) => context.strict(x)),
+    AS.RealV
+  )
+  try {
+    return wrapNumber(div(_argv[0].value, _argv[1].value))
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new E.UnsuspectedHangeulDivisionError(
+        metadata,
+        '0의 역수를 구하려고 했습니다.'
+      )
     }
+    throw error
   }
+}
 
-  return {
-    ㄱ: _multiply,
-    ㄷ: _add,
-    ㅅ: _exponentiate,
-    ㄴㄴ: _integerDivision,
-    ㄴㅁ: _remainder,
+function _remainder(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkArity(metadata, argv, 2)
+  const _argv = checkType(
+    metadata,
+    argv.map((x) => context.strict(x)),
+    AS.RealV
+  )
+  try {
+    return wrapNumber(mod(_argv[0].value, _argv[1].value))
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new E.UnsuspectedHangeulDivisionError(
+        metadata,
+        '0의 역수를 구하려고 했습니다.'
+      )
+    }
+    throw error
   }
+}
+
+export default {
+  ㄱ: _multiply,
+  ㄷ: _add,
+  ㅅ: _exponentiate,
+  ㄴㄴ: _integerDivision,
+  ㄴㅁ: _remainder,
 }

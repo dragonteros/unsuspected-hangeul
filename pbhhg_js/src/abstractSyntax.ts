@@ -71,12 +71,9 @@ export type LoadUtils = {
   joinPath(...parts: string[]): string
   normalizePath(path: string): string
 }
+
 export class Env {
-  constructor(
-    public funs: ClosureV[],
-    public args: Value[][],
-    public utils: LoadUtils
-  ) {}
+  constructor(public funs: ClosureV[], public args: Value[][]) {}
 }
 
 export class UnsuspectedHangeulError extends Error {
@@ -93,9 +90,9 @@ export class UnsuspectedHangeulError extends Error {
 
 /* Values */
 abstract class ValueBase {
-  abstract format(strict: StrictFn): string
-  asKey(strict: StrictFn): string {
-    return this.format(strict)
+  abstract format(context: EvalContextBase): string
+  asKey(context: EvalContextBase): string {
+    return this.format(context)
   }
 }
 
@@ -114,7 +111,7 @@ export class IntegerV extends ValueBase {
   constructor(public value: bigint) {
     super()
   }
-  format(strict: StrictFn) {
+  format(context: EvalContextBase) {
     return this.value.toString()
   }
 }
@@ -124,12 +121,12 @@ export class FloatV extends ValueBase {
   constructor(public value: number) {
     super()
   }
-  format(strict: StrictFn) {
+  format(context: EvalContextBase) {
     const str = _formatFloat(this.value)
     const trailing = _isPossibleInt(this.value) ? '.0' : ''
     return str + trailing
   }
-  asKey(strict: StrictFn) {
+  asKey(context: EvalContextBase) {
     return _formatFloat(this.value)
   }
 }
@@ -139,15 +136,15 @@ export class ComplexV extends ValueBase {
   constructor(public value: Complex) {
     super()
   }
-  format(strict: StrictFn) {
+  format(context: EvalContextBase) {
     const re = this.value.re
     const im = this.value.im
     const reStr = _formatFloat(re) + (im < 0 ? '' : '+')
     const imStr = im == 1 ? '' : im == -1 ? '-' : _formatFloat(im)
     return (re === 0 ? '' : reStr) + imStr + 'i'
   }
-  asKey(strict: StrictFn): string {
-    return this.value.im ? this.format(strict) : _formatFloat(this.value.re)
+  asKey(context: EvalContextBase): string {
+    return this.value.im ? this.format(context) : _formatFloat(this.value.re)
   }
 }
 
@@ -156,7 +153,7 @@ export class BooleanV extends ValueBase {
   constructor(public value: boolean) {
     super()
   }
-  format(strict: StrictFn) {
+  format(context: EvalContextBase) {
     return this.value ? 'True' : 'False'
   }
 }
@@ -166,12 +163,16 @@ export class ListV extends ValueBase {
   constructor(public value: Value[]) {
     super()
   }
-  format(strict: StrictFn): string {
-    const children = this.value.map((value) => strict(value).format(strict))
+  format(context: EvalContextBase): string {
+    const children = this.value.map((value) =>
+      context.strict(value).format(context)
+    )
     return `[${children.join(', ')}]`
   }
-  asKey(strict: StrictFn): string {
-    const children = this.value.map((value) => strict(value).asKey(strict))
+  asKey(context: EvalContextBase): string {
+    const children = this.value.map((value) =>
+      context.strict(value).asKey(context)
+    )
     return `[${children.join(', ')}]`
   }
 }
@@ -183,7 +184,7 @@ export class StringV extends ValueBase {
     super()
     this.value = Array.from(str)
   }
-  format(strict: StrictFn) {
+  format(context: EvalContextBase) {
     return "'" + this.str + "'"
   }
 }
@@ -198,7 +199,7 @@ export class BytesV extends ValueBase {
     const s = c.toString(16).toUpperCase()
     return '\\x' + ('0' + s).slice(-2)
   }
-  format(strict: StrictFn) {
+  format(context: EvalContextBase) {
     if (!this.str) {
       const arr = Array.from(new Uint8Array(this.value))
       const formatted = arr.map(this.formatByte)
@@ -229,13 +230,13 @@ export class DictV extends ValueBase {
     return this._values
   }
 
-  format(strict: StrictFn): string {
-    const values = this.values().map((v) => strict(v).format(strict))
+  format(context: EvalContextBase): string {
+    const values = this.values().map((v) => context.strict(v).format(context))
     const pairs = this.keys().map((k, i) => k + ': ' + values[i])
     return '{' + pairs.join(', ') + '}'
   }
-  asKey(strict: StrictFn): string {
-    const values = this.values().map((v) => strict(v).asKey(strict))
+  asKey(context: EvalContextBase): string {
+    const values = this.values().map((v) => context.strict(v).asKey(context))
     const pairs = this.keys().map((k, i) => k + ': ' + values[i])
     return '{' + pairs.join(', ') + '}'
   }
@@ -255,15 +256,15 @@ export class IOV extends ValueBase {
     super()
   }
 
-  format(strict: StrictFn): string {
+  format(context: EvalContextBase): string {
     const formatted = this.argv
-      .map((value) => strict(value).format(strict))
+      .map((value) => context.strict(value).format(context))
       .join(', ')
     return `<드나듦 ${this.inst}: [${formatted}]>`
   }
-  asKey(strict: StrictFn): string {
+  asKey(context: EvalContextBase): string {
     const formatted = this.argv
-      .map((value) => strict(value).asKey(strict))
+      .map((value) => context.strict(value).asKey(context))
       .join(', ')
     return `<드나듦 ${this.inst}: [${formatted}]>`
   }
@@ -274,7 +275,7 @@ export class NilV extends ValueBase {
   constructor() {
     super()
   }
-  format(strict: StrictFn): string {
+  format(context: EvalContextBase): string {
     return 'Nil'
   }
 }
@@ -289,13 +290,17 @@ export abstract class FunctionV extends ValueBase {
     this.id = FUNCTION_ID_GEN++
     this.str = '<' + adj + '함수>'
   }
-  format(strict: StrictFn) {
+  format(context: EvalContextBase) {
     return this.str
   }
-  asKey(strict: StrictFn): string {
+  asKey(context: EvalContextBase): string {
     return this.str.replace('>', ' #' + this.id + '>')
   }
-  abstract execute(metadata: Metadata, argv: Value[]): Value
+  abstract execute(
+    context: EvalContextBase,
+    metadata: Metadata,
+    argv: Value[]
+  ): Value
 }
 
 export class ClosureV extends FunctionV {
@@ -303,9 +308,9 @@ export class ClosureV extends FunctionV {
     super(`깊이 ${env.args.length}에서 생성된 `)
   }
 
-  execute(metadata: Metadata, argv: Value[]) {
+  execute(context: EvalContextBase, metadata: Metadata, argv: Value[]) {
     const newArgs = this.env.args.concat([argv])
-    const newEnv = new Env(this.env.funs, newArgs, this.env.utils)
+    const newEnv = new Env(this.env.funs, newArgs)
     return new ExprV(this.body, newEnv, null)
   }
 }
@@ -316,8 +321,8 @@ export class BuiltinModuleV extends FunctionV {
     this.str = '<기본 제공 모듈 ' + name + '>'
   }
 
-  execute(metadata: Metadata, argv: Value[]) {
-    return this.module(metadata, argv)
+  execute(context: EvalContextBase, metadata: Metadata, argv: Value[]) {
+    return this.module(context, metadata, argv)
   }
 }
 
@@ -330,12 +335,12 @@ export class ErrorV extends ValueBase {
   ) {
     super()
   }
-  format(strict: StrictFn): string {
-    const formatted = this.value.map((v) => v.format(strict)).join(', ')
+  format(context: EvalContextBase): string {
+    const formatted = this.value.map((v) => v.format(context)).join(', ')
     return `<예외: [${formatted}]>`
   }
-  asKey(strict: StrictFn): string {
-    const formatted = this.value.map((v) => v.asKey(strict)).join(', ')
+  asKey(context: EvalContextBase): string {
+    const formatted = this.value.map((v) => v.asKey(context)).join(', ')
     return `<예외: [${formatted}]>`
   }
 }
@@ -384,4 +389,19 @@ export type ProcFunctionalFn = (
   generalCallable?: boolean
 ) => Evaluation
 export type StrictFn = (value: Value) => StrictValue
-export type Evaluation = (metadata: Metadata, args: Value[]) => Value
+export type Evaluation = (
+  context: EvalContextBase,
+  metadata: Metadata,
+  argv: Value[]
+) => Value
+
+export abstract class EvalContextBase {
+  constructor(public loadUtils: LoadUtils) {}
+
+  abstract strict(value: Value): StrictValue
+  abstract procFunctional(
+    metadata: Metadata,
+    fun: Value,
+    generalCallable?: boolean
+  ): Evaluation
+}

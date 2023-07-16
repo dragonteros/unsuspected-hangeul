@@ -1,5 +1,5 @@
 import * as AS from './abstractSyntax'
-import { interpret, procFunctional, strict } from './interpret'
+import { EvalContext, interpret } from './interpret'
 import { parse } from './parse'
 import { checkType } from './utils'
 
@@ -18,12 +18,12 @@ async function doIO(
 /** Converts the value into string for display */
 async function toString(
   value: AS.Value,
-  strict: (v: AS.Value) => AS.StrictValue,
+  context: AS.EvalContextBase,
   ioUtils: AS.IOUtils,
   formatIO: boolean
 ): Promise<string> {
-  const _partial = (v: AS.Value) => toString(v, strict, ioUtils, formatIO)
-  value = strict(value)
+  const _partial = (v: AS.Value) => toString(v, context, ioUtils, formatIO)
+  value = context.strict(value)
   if (value instanceof AS.IOV) {
     value = await doIO(value, ioUtils)
     const formatted = await _partial(value)
@@ -45,7 +45,7 @@ async function toString(
     const argvStr = (await Promise.all(value.value.map(_partial))).join(', ')
     return '<예외: [' + argvStr + ']>'
   }
-  return value.format(strict)
+  return value.format(context)
 }
 
 /** Main procedure. Parses, evaluates, and converts to str.
@@ -60,9 +60,10 @@ export async function main(
   formatIO = true
 ): Promise<string[]> {
   const exprs = parse(filename, program)
-  const env = new AS.Env([], [], loadUtils)
-  const values = exprs.map((expr) => interpret(expr, env))
-  return Promise.all(values.map((v) => toString(v, strict, ioUtils, formatIO)))
+  const context = new EvalContext(loadUtils)
+  const env = new AS.Env([], [])
+  const values = exprs.map((expr) => interpret(context, expr, env))
+  return Promise.all(values.map((v) => toString(v, context, ioUtils, formatIO)))
 }
 
 /** Main procedure. Parses, evaluates, and converts to str.
@@ -90,12 +91,13 @@ export async function run(
     throw new AS.UnsuspectedHangeulError(error)
   }
 
-  const env = new AS.Env([], [], loadUtils)
-  let value = strict(interpret(exprs[0], env))
+  const context = new EvalContext(loadUtils)
+  const env = new AS.Env([], [])
+  let value = context.strict(interpret(context, exprs[0], env))
 
   if (value instanceof AS.FunctionV) {
-    const recipe = procFunctional(metadata, value)
-    value = strict(recipe(metadata, args))
+    const recipe = context.procFunctional(metadata, value)
+    value = context.strict(recipe(context, metadata, args))
   }
 
   if (value instanceof AS.IOV) {

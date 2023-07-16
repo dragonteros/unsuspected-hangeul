@@ -9,20 +9,16 @@ import buildMath from '../modules/math'
 
 interface ModuleTable
   extends Record<string, number | AS.Evaluation | ModuleTable> {}
-const BUILDERS: ((
-  procFunctional: AS.ProcFunctionalFn,
-  strict: AS.StrictFn,
-  loadUtils: AS.LoadUtils
-) => ModuleTable)[] = [buildBitwise, buildByte, buildMath]
+const BUILDERS: ModuleTable[] = [buildBitwise, buildByte, buildMath]
 
 var MODULE_REGISTRY: Record<string, AS.Value> = {}
 var BUILTIN_MODULE_REGISTRY = new AS.DictV({})
 
-function loadFromPath(path: string, utils: AS.LoadUtils) {
-  path = utils.normalizePath(path)
+function loadFromPath(context: AS.EvalContextBase, path: string) {
+  path = context.loadUtils.normalizePath(path)
   var module = MODULE_REGISTRY[path]
   if (module) return module
-  const program = utils.load(path)
+  const program = context.loadUtils.load(path)
   const exprs = parse(path, program)
   if (exprs.length !== 1) {
     throw new E.UnsuspectedHangeulValueError(
@@ -30,16 +26,16 @@ function loadFromPath(path: string, utils: AS.LoadUtils) {
       `모듈에는 표현식이 하나만 있어야 하는데 ${exprs.length}개가 있습니다.`
     )
   }
-  const env = new AS.Env([], [], utils)
+  const env = new AS.Env([], [])
   module = new AS.ExprV(exprs[0], env, null)
   MODULE_REGISTRY[path] = module
   return module
 }
 
 function loadFromLiteral(
+  context: AS.EvalContextBase,
   metadata: AS.Metadata,
-  literals: bigint[],
-  utils: AS.LoadUtils
+  literals: bigint[]
 ) {
   const name = literals.map(encodeNumber).join(' ')
   const errMsg = `정수 리터럴열 ${name}에 맞는 모듈을 찾지 못했습니다.`
@@ -53,29 +49,29 @@ function loadFromLiteral(
     }
     return module
   }
-  const path = searchLiteral(metadata, literals, '.', utils)
+  const path = searchLiteral(context, metadata, literals, '.')
   if (!path) throw new E.UnsuspectedHangeulNotFoundError(metadata, errMsg)
-  return loadFromPath(path, utils)
+  return loadFromPath(context, path)
 }
 
 function searchLiteral(
+  context: AS.EvalContextBase,
   metadata: AS.Metadata,
   literals: bigint[],
-  location: string,
-  utils: AS.LoadUtils
+  location: string
 ): string | null {
   if (literals.length === 0) {
-    return utils.isFile(location) ? location : null
+    return context.loadUtils.isFile(location) ? location : null
   }
   const cur = literals[0]
   const sub = literals.slice(1)
 
-  const subentries = utils.listdir(location)
+  const subentries = context.loadUtils.listdir(location)
   const found = subentries
     .map((entry) => {
       if (!matchesLiteral(entry, cur)) return null
-      const searchPath = utils.joinPath(location, entry)
-      return searchLiteral(metadata, sub, searchPath, utils)
+      const searchPath = context.loadUtils.joinPath(location, entry)
+      return searchLiteral(context, metadata, sub, searchPath)
     })
     .filter((x) => x)
 
@@ -119,36 +115,31 @@ function constructBuiltinModules(data: ModuleData, keys: string[]) {
   return new AS.DictV(newObj)
 }
 
-export default function (
-  procFunctional: AS.ProcFunctionalFn,
-  strict: AS.StrictFn,
-  loadUtils: AS.LoadUtils
-): Record<string, AS.Evaluation> {
-  function _registerBuiltinModule(
-    builder: (
-      procFunctional: AS.ProcFunctionalFn,
-      strict: AS.StrictFn,
-      loadUtils: AS.LoadUtils
-    ) => ModuleTable
-  ) {
-    let module = builder(procFunctional, strict, loadUtils)
-    const _module = constructBuiltinModules(module, ['ㅂ'])
-    Object.assign(BUILTIN_MODULE_REGISTRY.value, _module.value)
-  }
-  BUILDERS.forEach(_registerBuiltinModule)
+function _registerBuiltinModule(module: ModuleTable) {
+  const _module = constructBuiltinModules(module, ['ㅂ'])
+  Object.assign(BUILTIN_MODULE_REGISTRY.value, _module.value)
+}
+BUILDERS.forEach(_registerBuiltinModule)
 
-  function _load(metadata: AS.Metadata, argv: AS.Value[]) {
-    checkMinArity(metadata, argv, 1)
-    if (argv.every(isLiteralExpr)) {
-      var literals = argv.map((arg) => arg.expr.value)
-      return loadFromLiteral(metadata, literals, loadUtils)
-    }
-    checkArity(metadata, argv, 1)
-    const [filepath] = checkType(metadata, [strict(argv[0])], [AS.StringV])
-    return loadFromPath(filepath.str, loadUtils)
+function _load(
+  context: AS.EvalContextBase,
+  metadata: AS.Metadata,
+  argv: AS.Value[]
+) {
+  checkMinArity(metadata, argv, 1)
+  if (argv.every(isLiteralExpr)) {
+    var literals = argv.map((arg) => arg.expr.value)
+    return loadFromLiteral(context, metadata, literals)
   }
+  checkArity(metadata, argv, 1)
+  const [filepath] = checkType(
+    metadata,
+    [context.strict(argv[0])],
+    [AS.StringV]
+  )
+  return loadFromPath(context, filepath.str)
+}
 
-  return {
-    ㅂ: _load,
-  }
+export default {
+  ㅂ: _load,
 }

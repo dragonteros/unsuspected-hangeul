@@ -1,5 +1,5 @@
 import * as AS from '../abstractSyntax';
-export default function (procFunctional: AS.ProcFunctionalFn, strict: AS.StrictFn, loadUtils: AS.LoadUtils): {
+declare const _default: {
     ㅂㄷ: {
         ㄱ: AS.Evaluation;
         ㄷ: AS.Evaluation;
@@ -8,3 +8,4 @@ export default function (procFunctional: AS.ProcFunctionalFn, strict: AS.StrictF
         ㅈ: AS.Evaluation;
     };
 };
+export default _default;
