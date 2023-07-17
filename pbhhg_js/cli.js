@@ -1,4 +1,5 @@
 /* CLI for Node.js */
+import fs from 'node:fs'
 import * as url from 'node:url'
 
 import * as pbhhg from './dist/main.module.js'
